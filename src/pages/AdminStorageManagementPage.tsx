@@ -379,36 +379,24 @@ const AdminStorageManagementPage: React.FC = () => {
       </Box>
 
       {/* Storage Stats */}
-      <Card sx={{ mb: 4, backgroundColor: '#e3f2fd' }}>
-        <CardContent>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
-            <Box>
-              <Typography variant="caption" sx={{ color: '#6b7280', textTransform: 'uppercase', fontWeight: 600 }}>
-                Total Cabinets
+      <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
+        {[
+          { label: 'Total Cabinets', value: storageData.length, color: '#1a73e8', bg: '#f0f4ff' },
+          { label: 'Total Drawers', value: storageData.reduce((total, cabinet) => total + cabinet.drawers.length, 0), color: '#10b981', bg: '#e8f5e9' },
+          { label: 'Total Items', value: getTotalItems(), color: '#f59e0b', bg: '#fff3e0' },
+        ].map((s) => (
+          <Card key={s.label} sx={{ backgroundColor: s.bg, minWidth: 150, flex: 1 }}>
+            <CardContent>
+              <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 600, textTransform: 'uppercase' }}>
+                {s.label}
               </Typography>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#1a73e8', mt: 0.5 }}>
-                {storageData.length}
+              <Typography variant="h4" sx={{ fontWeight: 700, color: s.color, mt: 1 }}>
+                {s.value}
               </Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" sx={{ color: '#6b7280', textTransform: 'uppercase', fontWeight: 600 }}>
-                Total Drawers
-              </Typography>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#3b82f6', mt: 0.5 }}>
-                {storageData.reduce((total, cabinet) => total + cabinet.drawers.length, 0)}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="caption" sx={{ color: '#6b7280', textTransform: 'uppercase', fontWeight: 600 }}>
-                Total Items
-              </Typography>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#7c3aed', mt: 0.5 }}>
-                {getTotalItems()}
-              </Typography>
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
 
       {/* Storage Cabinets Grid */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3 }}>

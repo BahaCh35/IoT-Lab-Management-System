@@ -249,7 +249,6 @@ const AdminDashboardPage: React.FC = () => {
                   <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Type</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Requester</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Description</TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Priority</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Date</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: '#374151' }} align="right">
                     Actions
@@ -275,13 +274,6 @@ const AdminDashboardPage: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ color: '#374151' }}>{approval.description.substring(0, 40)}...</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={approval.priority.charAt(0).toUpperCase() + approval.priority.slice(1)}
-                          size="small"
-                          sx={{ backgroundColor: getPriorityColor(approval.priority), color: 'white' }}
-                        />
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ color: '#6b7280' }}>{approval.requestedDate}</Typography>
@@ -661,18 +653,6 @@ const AdminDashboardPage: React.FC = () => {
                 </Typography>
               </Box>
 
-              <Box>
-                <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 600 }}>
-                  PRIORITY
-                </Typography>
-                <Box sx={{ mt: 0.5 }}>
-                  <Chip
-                    label={selectedApproval.priority.charAt(0).toUpperCase() + selectedApproval.priority.slice(1)}
-                    size="small"
-                    sx={{ backgroundColor: getPriorityColor(selectedApproval.priority), color: 'white' }}
-                  />
-                </Box>
-              </Box>
 
               <Box>
                 <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 600 }}>

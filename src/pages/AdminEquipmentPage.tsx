@@ -218,6 +218,15 @@ const AdminEquipmentPage: React.FC = () => {
             <MenuItem value="damaged">Damaged</MenuItem>
           </Select>
         </FormControl>
+        {searchQuery || categoryFilter !== 'All' || statusFilter !== 'All' ? (
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => { setSearchQuery(''); setCategoryFilter('All'); setStatusFilter('All'); }}
+            sx={{ textTransform: 'none', borderRadius: 2 }}
+          >
+          Clear
+        </Button>) : null}
       </Box>
 
       {/* Equipment Grid */}
