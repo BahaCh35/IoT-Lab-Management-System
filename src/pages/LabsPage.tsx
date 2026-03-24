@@ -18,8 +18,13 @@ const LabsPage: React.FC = () => {
     equipment: '',
   });
 
-  const reload = () => {
-    setLabs(labService.getLabs());
+  const reload = async () => {
+    try {
+      const labsData = await labService.getLabs();
+      setLabs(labsData);
+    } catch (error) {
+      console.error('Error loading labs:', error);
+    }
   };
 
   useEffect(() => { reload(); }, []);

@@ -18,9 +18,16 @@ const TechnicianHistoryPage: React.FC = () => {
   const [filterMonth, setFilterMonth] = useState('');
 
   useEffect(() => {
-    const history = maintenanceService.getMaintenanceHistory();
-    setCompletedTasks(history);
-    setFilteredTasks(history);
+    const loadHistory = async () => {
+      try {
+        const history = await maintenanceService.getMaintenanceHistory();
+        setCompletedTasks(history);
+        setFilteredTasks(history);
+      } catch (error) {
+        console.error('Error loading maintenance history:', error);
+      }
+    };
+    loadHistory();
   }, []);
 
   useEffect(() => {

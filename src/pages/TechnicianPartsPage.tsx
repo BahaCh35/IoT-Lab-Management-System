@@ -13,6 +13,13 @@ const TechnicianPartsPage: React.FC = () => {
   const [partsRequests, setPartsRequests] = useState<PartsRequest[]>([]);
   const [inventory, setInventory] = useState<Record<string, number>>({});
   const [lowStockParts, setLowStockParts] = useState<string[]>([]);
+  const [stats, setStats] = useState({
+    totalRequests: 0,
+    pendingRequests: 0,
+    approvedRequests: 0,
+    totalInventoryItems: 0,
+    lowStockItems: 0,
+  });
   const [openDialog, setOpenDialog] = useState(false);
   const [partName, setPartName] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -33,37 +40,55 @@ const TechnicianPartsPage: React.FC = () => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    // Load parts requests
-    const requests = partsService.getAllPartsRequests();
-    setPartsRequests(requests);
+  const loadData = async () => {
+    try {
+      // Load parts requests
+      const requests = await partsService.getPartsRequests();
+      setPartsRequests(requests);
 
-    // Load inventory
-    const inv = partsService.getComponentInventory();
-    setInventory(inv);
+      // Load inventory
+      const inv = await partsService.getComponentInventory();
+      // Convert ComponentInventory[] to Record<string, number>
+      const inventoryMap: Record<string, number> = {};
+      inv.forEach((item) => {
+        inventoryMap[item.partName] = item.quantity;
+      });
+      setInventory(inventoryMap);
 
-    // Load low stock items
-    const lowStock = partsService.getLowStockParts();
-    setLowStockParts(lowStock);
+      // Load low stock items
+      const lowStock = await partsService.getLowStockItems();
+      // Extract part names from ComponentInventory[]
+      const lowStockNames = lowStock.map((item) => item.partName);
+      setLowStockParts(lowStockNames);
+
+      // Load stats
+      const statsData = await partsService.getPartsStats();
+      setStats(statsData);
+    } catch (error) {
+      console.error('Error loading parts data:', error);
+    }
   };
 
-  const handleRequestParts = () => {
+  const handleRequestParts = async () => {
     if (!partName || !quantity || !reason) return;
 
-    partsService.requestParts({
-      technicianId: mockTechnician.id,
-      technicianName: mockTechnician.name,
-      partName,
-      quantity: parseInt(quantity),
-      reason,
-      requestedDate: new Date().toISOString(),
-    });
+    try {
+      await partsService.createPartsRequest({
+        technicianId: mockTechnician.id,
+        technicianName: mockTechnician.name,
+        partName,
+        quantity: parseInt(quantity),
+        reason,
+      });
 
-    setPartName('');
-    setQuantity('');
-    setReason('');
-    setOpenDialog(false);
-    loadData();
+      setPartName('');
+      setQuantity('');
+      setReason('');
+      setOpenDialog(false);
+      loadData();
+    } catch (error) {
+      console.error('Error creating parts request:', error);
+    }
   };
 
   const handleOpenQuickRequest = (name: string) => {
@@ -115,8 +140,6 @@ const TechnicianPartsPage: React.FC = () => {
         r.reason.toLowerCase().includes(searchParts.toLowerCase())
     );
   }
-
-  const stats = partsService.getPartsStats();
 
   return (
     <Box sx={{ p: 3 }}>
@@ -209,7 +232,7 @@ const TechnicianPartsPage: React.FC = () => {
                   Part Types
                 </Typography>
                 <Typography variant="h4" sx={{ fontWeight: 700, color: '#10b981', mt: 0.5 }}>
-                  {stats.totalPartTypes}
+                  {stats.totalInventoryItems}
                 </Typography>
               </Box>
               <WidgetsIcon sx={{ fontSize: 40, color: '#10b981', opacity: 0.3 }} />

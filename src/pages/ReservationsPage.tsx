@@ -102,24 +102,29 @@ const ReservationsPage: React.FC = () => {
     loadAllReservations();
   }, []);
 
-  const loadAllReservations = () => {
-    // Load equipment reservations for current user
-    const allEquipment = equipmentReservationService.getReservations({ userId: user?.id });
-    setEquipmentReservations(allEquipment);
+  const loadAllReservations = async () => {
+    try {
+      // Load equipment reservations for current user
+      const allEquipment = await equipmentReservationService.getReservations();
+      const userEquipment = allEquipment.filter((r) => r.userId === user?.id);
+      setEquipmentReservations(userEquipment);
 
-    // Load meeting room reservations for current user
-    const allMeetingRooms = meetingRoomService.getMeetingRooms();
-    setMeetingRooms(allMeetingRooms);
-    const allMeetingRes = meetingRoomService.getMeetingRoomReservations();
-    const userMeetingRes = allMeetingRes.filter((r) => r.user.id === user?.id);
-    setMeetingRoomReservations(userMeetingRes);
+      // Load meeting room reservations for current user
+      const allMeetingRooms = await meetingRoomService.getMeetingRooms();
+      setMeetingRooms(allMeetingRooms);
+      const allMeetingRes = await meetingRoomService.getMeetingRoomReservations();
+      const userMeetingRes = allMeetingRes.filter((r) => r.user.id === user?.id);
+      setMeetingRoomReservations(userMeetingRes);
 
-    // Load lab reservations for current user
-    const allLabs = labService.getLabs();
-    setLabs(allLabs.filter((l) => l.isActive));
-    const allLabRes = labService.getLabReservations();
-    const userLabRes = allLabRes.filter((r) => r.user.id === user?.id);
-    setLabReservations(userLabRes);
+      // Load lab reservations for current user
+      const allLabs = await labService.getLabs();
+      setLabs(allLabs.filter((l) => l.isActive));
+      const allLabRes = await labService.getLabReservations();
+      const userLabRes = allLabRes.filter((r) => r.user.id === user?.id);
+      setLabReservations(userLabRes);
+    } catch (error) {
+      console.error('Error loading reservations:', error);
+    }
   };
 
   const getFilteredReservations = (reservations: any[]) => {
@@ -140,27 +145,31 @@ const ReservationsPage: React.FC = () => {
     setReviewDialogOpen(true);
   };
 
-  const handleCreateEquipmentReservation = () => {
+  const handleCreateEquipmentReservation = async () => {
     if (!equipmentFormData.equipment || !equipmentFormData.startDate || !equipmentFormData.endDate) return;
 
-    const newReservation = equipmentReservationService.createReservation({
-      equipmentId: `eq-${equipmentFormData.equipment}`,
-      equipment: equipmentFormData.equipment,
-      userId: user?.id || '',
-      userName: user?.name || 'Anonymous',
-      startDate: equipmentFormData.startDate,
-      endDate: equipmentFormData.endDate,
-      notes: equipmentFormData.notes,
-    });
+    try {
+      const newReservation = await equipmentReservationService.createReservation({
+        equipmentId: `eq-${equipmentFormData.equipment}`,
+        equipmentName: equipmentFormData.equipment,
+        userId: user?.id || '',
+        userName: user?.name || 'Anonymous',
+        startDate: equipmentFormData.startDate,
+        endDate: equipmentFormData.endDate,
+        notes: equipmentFormData.notes,
+      });
 
-    setEquipmentReservations([...equipmentReservations, newReservation]);
-    setEquipmentFormData({
-      equipment: '',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      notes: '',
-    });
-    setDialogOpen(false);
+      setEquipmentReservations([...equipmentReservations, newReservation]);
+      setEquipmentFormData({
+        equipment: '',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        notes: '',
+      });
+      setDialogOpen(false);
+    } catch (error) {
+      console.error('Error creating equipment reservation:', error);
+    }
   };
 
   const handleCreateMeetingRoomReservation = () => {
@@ -219,14 +228,18 @@ const ReservationsPage: React.FC = () => {
     setDialogOpen(false);
   };
 
-  const handleCancelReservation = (id: string, type: 'equipment' | 'meeting' | 'lab') => {
-    if (type === 'equipment') {
-      equipmentReservationService.cancelReservation(id);
-      setEquipmentReservations(equipmentReservations.filter((r) => r.id !== id));
-    } else if (type === 'meeting') {
-      setMeetingRoomReservations(meetingRoomReservations.filter((r) => r.id !== id));
-    } else if (type === 'lab') {
-      setLabReservations(labReservations.filter((r) => r.id !== id));
+  const handleCancelReservation = async (id: string, type: 'equipment' | 'meeting' | 'lab') => {
+    try {
+      if (type === 'equipment') {
+        await equipmentReservationService.cancelReservation(id);
+        setEquipmentReservations(equipmentReservations.filter((r) => r.id !== id));
+      } else if (type === 'meeting') {
+        setMeetingRoomReservations(meetingRoomReservations.filter((r) => r.id !== id));
+      } else if (type === 'lab') {
+        setLabReservations(labReservations.filter((r) => r.id !== id));
+      }
+    } catch (error) {
+      console.error('Error canceling reservation:', error);
     }
   };
 

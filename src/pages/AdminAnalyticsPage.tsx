@@ -14,17 +14,24 @@ const AdminAnalyticsPage: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
-    const approvalStats = approvalService.getApprovalStats();
-    const meetingStats = meetingRoomService.getStats();
-    const labStats = labService.getStats();
-    const userStats = userService.getUserStats();
+    const loadStats = async () => {
+      try {
+        const approvalStats = await approvalService.getApprovalStats();
+        const meetingStats = await meetingRoomService.getMeetingRoomStats();
+        const labStats = await labService.getLabStats();
+        const userStats = await userService.getUserStats();
 
-    setStats({
-      approvals: approvalStats,
-      meetings: meetingStats,
-      labs: labStats,
-      users: userStats,
-    });
+        setStats({
+          approvals: approvalStats,
+          meetings: meetingStats,
+          labs: labStats,
+          users: userStats,
+        });
+      } catch (error) {
+        console.error('Error loading analytics stats:', error);
+      }
+    };
+    loadStats();
   }, []);
 
   if (!stats) {

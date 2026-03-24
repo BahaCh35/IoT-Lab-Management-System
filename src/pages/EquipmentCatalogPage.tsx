@@ -448,7 +448,7 @@ const EquipmentCatalogPage: React.FC = () => {
       requester: { id: 'current-engineer', name: 'My Profile', email: 'engineer@novation.com', role: 'engineer', createdAt: new Date().toISOString() },
       description: `Equipment reservation: ${qty}× ${actionTarget?.name} on ${date}`,
       details: { equipmentName: actionTarget?.name, quantity: qty, reservationDate: date },
-      requestedDate: date,
+      priority: 'medium',
     });
     setItemState(actionTarget!.id, 'reserved');
     setSnackMsg(`Reservation submitted: ${qty}× ${actionTarget?.name} on ${date} — pending admin approval.`);

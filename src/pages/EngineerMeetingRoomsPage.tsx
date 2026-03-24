@@ -223,7 +223,7 @@ const EngineerMeetingRoomsPage: React.FC = () => {
       requester: { id: 'current-engineer', name: 'My Profile', email: 'engineer@novation.com', role: 'engineer', createdAt: new Date().toISOString() },
       description: `Meeting room booking: ${selectedRoom?.name} on ${form.date} at ${form.startTime} for ${form.duration}`,
       details: { roomName: selectedRoom?.name, date: form.date, startTime: form.startTime, duration: form.duration, purpose: form.purpose, attendees: form.attendees },
-      requestedDate: form.date,
+      priority: 'medium',
     });
     setSuccessMsg(`Reservation request for "${selectedRoom?.name}" submitted! Awaiting admin approval.`);
     setForm(emptyForm());

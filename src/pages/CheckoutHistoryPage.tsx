@@ -23,7 +23,7 @@ import {
 } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
 import DownloadIcon from '@mui/icons-material/Download';
-import { Checkout } from '../types';
+import { Checkout, Equipment } from '../types';
 import { checkoutService } from '../services/checkoutService';
 
 interface TabPanelProps {
@@ -54,6 +54,7 @@ const CheckoutHistoryPage: React.FC = () => {
   const [dateFilterEnd, setDateFilterEnd] = useState('');
   const [equipmentFilter, setEquipmentFilter] = useState('');
   const [allCheckouts, setAllCheckouts] = useState<Checkout[]>([]);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
 
   // Mock current user
   const currentUser = {
@@ -62,12 +63,29 @@ const CheckoutHistoryPage: React.FC = () => {
   };
 
   React.useEffect(() => {
-    loadCheckouts();
+    loadData();
   }, []);
 
-  const loadCheckouts = () => {
-    const checkouts = checkoutService.getCheckouts();
-    setAllCheckouts(checkouts);
+  const loadData = async () => {
+    try {
+      const [checkouts, equipmentData] = await Promise.all([
+        checkoutService.getCheckouts(),
+        checkoutService.getEquipment()
+      ]);
+      setAllCheckouts(checkouts);
+      setEquipment(equipmentData);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
+  };
+
+  const loadCheckouts = async () => {
+    try {
+      const checkouts = await checkoutService.getCheckouts();
+      setAllCheckouts(checkouts);
+    } catch (error) {
+      console.error('Error loading checkouts:', error);
+    }
   };
 
   // Filter checkouts based on tab and date range
@@ -115,9 +133,9 @@ const CheckoutHistoryPage: React.FC = () => {
     return status === 'active' ? 'Active ✅' : 'Returned 📦';
   };
 
-  // Get equipment names from service
+  // Get equipment names from loaded equipment data
   const getEquipmentName = (equipmentId: string): string => {
-    const eq = checkoutService.getEquipmentById(equipmentId);
+    const eq = equipment.find(e => e.id === equipmentId);
     return eq?.name || 'Unknown Equipment';
   };
 

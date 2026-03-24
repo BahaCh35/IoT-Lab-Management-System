@@ -26,9 +26,23 @@ const TechnicianDashboardPage: React.FC = () => {
   const [searchEquipment, setSearchEquipment] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    inProgress: 0,
+    completed: 0,
+    cannotRepair: 0,
+  });
 
-  const reload = () => {
-    setAllTasks(maintenanceService.getMaintenanceRequests());
+  const reload = async () => {
+    try {
+      const tasks = await maintenanceService.getRequests();
+      setAllTasks(tasks);
+      const statsData = await maintenanceService.getMaintenanceStats();
+      setStats(statsData);
+    } catch (error) {
+      console.error('Error loading maintenance requests:', error);
+    }
   };
 
   useEffect(() => { reload(); }, []);
@@ -53,16 +67,18 @@ const TechnicianDashboardPage: React.FC = () => {
     setPartsUsed(partsUsed.filter((_, i) => i !== index));
   };
 
-  const handleUpdateTask = () => {
+  const handleUpdateTask = async () => {
     if (!selectedTask) return;
-    maintenanceService.updateTaskStatus(selectedTask.id, statusUpdate, notes);
-    const updated = maintenanceService.getMaintenanceRequestById(selectedTask.id);
-    if (updated) {
-      updated.partsUsed = partsUsed;
+    try {
+      await maintenanceService.updateRequestStatus(selectedTask.id, statusUpdate as MaintenanceRequest['status']);
+      await maintenanceService.updateRequestNotes(selectedTask.id, notes);
+      await reload();
+      setOpenDialog(false);
+      setPartsUsed([]);
+    } catch (error) {
+      console.error('Error updating task:', error);
+      alert('Failed to update task. Please try again.');
     }
-    reload();
-    setOpenDialog(false);
-    setPartsUsed([]);
   };
 
   const getPriorityColor = (priority: string): string => {
@@ -114,8 +130,6 @@ const TechnicianDashboardPage: React.FC = () => {
     return allTasks.filter((t) => t.reportedDate.startsWith(dateStr));
   };
 
-  const stats = maintenanceService.getStats();
-
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
@@ -132,7 +146,7 @@ const TechnicianDashboardPage: React.FC = () => {
           { label: 'Total Tasks',   value: stats.total,        color: '#1a73e8', bg: '#f0f4ff', icon: <BuildIcon sx={{ color: 'white', fontSize: 20 }} /> },
           { label: 'Pending',       value: stats.pending,      color: '#f59e0b', bg: '#fff3e0', icon: <PendingActionsIcon sx={{ color: 'white', fontSize: 20 }} /> },
           { label: 'In Progress',   value: stats.inProgress,   color: '#3b82f6', bg: '#e3f2fd', icon: <BuildIcon sx={{ color: 'white', fontSize: 20 }} /> },
-          { label: 'Waiting Parts', value: stats.waitingParts, color: '#ec4899', bg: '#f3e5f5', icon: <PendingActionsIcon sx={{ color: 'white', fontSize: 20 }} /> },
+          { label: 'Cannot Repair', value: stats.cannotRepair, color: '#ec4899', bg: '#f3e5f5', icon: <PendingActionsIcon sx={{ color: 'white', fontSize: 20 }} /> },
         ].map((s) => (
           <Card key={s.label} sx={{ backgroundColor: s.bg }}>
             <CardContent>

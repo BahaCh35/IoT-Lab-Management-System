@@ -42,6 +42,13 @@ const EngineerCheckoutPage: React.FC = () => {
   const [checkoutNotes, setCheckoutNotes] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [stats, setStats] = useState({
+    totalCheckouts: 0,
+    activeCheckouts: 0,
+    returnedCheckouts: 0,
+    overdueCheckouts: 0,
+  });
+  const [overdueCheckouts, setOverdueCheckouts] = useState<Checkout[]>([]);
 
   // Mock current user
   const currentUser = {
@@ -56,12 +63,22 @@ const EngineerCheckoutPage: React.FC = () => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    const allEquipment = checkoutService.getEquipment();
-    setEquipment(allEquipment);
+  const loadData = async () => {
+    try {
+      const [allEquipment, myActiveCheckouts, statsData, overdue] = await Promise.all([
+        checkoutService.getEquipment(),
+        checkoutService.getUserActiveCheckouts(currentUser.id),
+        checkoutService.getCheckoutStats(),
+        checkoutService.getOverdueCheckouts()
+      ]);
 
-    const myActiveCheckouts = checkoutService.getUserActiveCheckouts(currentUser.id);
-    setActiveCheckouts(myActiveCheckouts);
+      setEquipment(allEquipment);
+      setActiveCheckouts(myActiveCheckouts);
+      setStats(statsData);
+      setOverdueCheckouts(overdue);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
   };
 
   const filteredEquipment = equipment.filter((item) => {
@@ -87,7 +104,7 @@ const EngineerCheckoutPage: React.FC = () => {
     setCheckoutNotes('');
   };
 
-  const handleConfirmCheckout = () => {
+  const handleConfirmCheckout = async () => {
     if (!selectedEquipment || !expectedReturnDate) {
       setErrorMessage('Please select a return date');
       return;
@@ -100,7 +117,7 @@ const EngineerCheckoutPage: React.FC = () => {
         return;
       }
 
-      checkoutService.checkoutEquipment(
+      await checkoutService.checkoutEquipment(
         selectedEquipment.id,
         currentUser.id,
         currentUser.name,
@@ -109,7 +126,7 @@ const EngineerCheckoutPage: React.FC = () => {
       );
 
       setSuccessMessage(`✅ ${selectedEquipment.name} checked out successfully!`);
-      loadData();
+      await loadData();
       handleCloseCheckoutDialog();
 
       // Clear message after 4 seconds
@@ -119,11 +136,11 @@ const EngineerCheckoutPage: React.FC = () => {
     }
   };
 
-  const handleReturnEquipment = (checkoutId: string) => {
+  const handleReturnEquipment = async (checkoutId: string) => {
     try {
-      checkoutService.checkInEquipment(checkoutId);
+      await checkoutService.checkInEquipment(checkoutId);
       setSuccessMessage('✅ Equipment returned successfully!');
-      loadData();
+      await loadData();
       setTimeout(() => setSuccessMessage(''), 4000);
     } catch (error: any) {
       setErrorMessage(error.message || 'Failed to return equipment');
@@ -163,8 +180,6 @@ const EngineerCheckoutPage: React.FC = () => {
   const getCategoryLabel = (category: Equipment['category']): string => {
     return category.charAt(0).toUpperCase() + category.slice(1);
   };
-
-  const stats = checkoutService.getCheckoutStats();
 
   return (
     <Box sx={{ p: 3 }}>
@@ -250,7 +265,7 @@ const EngineerCheckoutPage: React.FC = () => {
                   Overdue Items
                 </Typography>
                 <Typography variant="h4" sx={{ fontWeight: 700, color: '#ec4899', mt: 0.5 }}>
-                  {checkoutService.getOverdueCheckouts().length}
+                  {overdueCheckouts.length}
                 </Typography>
               </Box>
             </Box>

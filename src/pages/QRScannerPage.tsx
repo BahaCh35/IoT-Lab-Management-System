@@ -40,12 +40,29 @@ const QRScannerPage: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [currentCheckouts, setCurrentCheckouts] = useState(0);
+  const [overdueCount, setOverdueCount] = useState(0);
 
   // Mock current user
   const currentUser = {
     id: '101',
     name: 'Ahmed',
   };
+
+  // Load statistics on component mount
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const activeCheckouts = await checkoutService.getUserActiveCheckouts(currentUser.id);
+        const overdueCheckouts = await checkoutService.getOverdueCheckouts();
+        setCurrentCheckouts(activeCheckouts.length);
+        setOverdueCount(overdueCheckouts.length);
+      } catch (error) {
+        console.error('Error loading checkout statistics:', error);
+      }
+    };
+    loadStats();
+  }, [currentUser.id]);
 
   const handleScanQR = () => {
     if (!qrInput.trim()) {
@@ -56,9 +73,9 @@ const QRScannerPage: React.FC = () => {
     setIsScanning(true);
 
     // Simulate scan delay
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
-        const checkout = checkoutService.getCheckoutByQRCode(qrInput);
+        const checkout = await checkoutService.getCheckoutByQRCode(qrInput);
 
         if (!checkout) {
           setErrorMessage(`❌ QR Code "${qrInput}" not found or not currently checked out`);
@@ -81,7 +98,7 @@ const QRScannerPage: React.FC = () => {
           return;
         }
 
-        const equipment = checkoutService.getEquipmentById(checkout.equipmentId);
+        const equipment = await checkoutService.getEquipmentById(checkout.equipmentId);
 
         const scannedItem = {
           ...checkout,
@@ -101,16 +118,16 @@ const QRScannerPage: React.FC = () => {
     }, 800);
   };
 
-  const handleConfirmReturn = () => {
+  const handleConfirmReturn = async () => {
     if (!selectedScannedItem) return;
 
     try {
-      const updatedCheckout = checkoutService.checkInEquipment(
+      const updatedCheckout = await checkoutService.checkInEquipment(
         selectedScannedItem.id,
         returnNotes || undefined
       );
 
-      const equipment = checkoutService.getEquipmentById(updatedCheckout.equipmentId);
+      const equipment = await checkoutService.getEquipmentById(updatedCheckout.equipmentId);
 
       setScannedItems([
         ...scannedItems,
@@ -127,6 +144,12 @@ const QRScannerPage: React.FC = () => {
       setDialogOpen(false);
       setSelectedScannedItem(null);
       setReturnNotes('');
+
+      // Refresh statistics after successful return
+      const activeCheckouts = await checkoutService.getUserActiveCheckouts(currentUser.id);
+      const overdueCheckouts = await checkoutService.getOverdueCheckouts();
+      setCurrentCheckouts(activeCheckouts.length);
+      setOverdueCount(overdueCheckouts.length);
 
       setTimeout(() => setSuccessMessage(''), 4000);
     } catch (error: any) {
@@ -315,7 +338,7 @@ const QRScannerPage: React.FC = () => {
                 Current Checkouts
               </Typography>
               <Typography variant="h5" sx={{ fontWeight: 700, color: '#3b82f6', mt: 0.5 }}>
-                {checkoutService.getUserActiveCheckouts(currentUser.id).length}
+                {currentCheckouts}
               </Typography>
             </Box>
             <Box sx={{ p: 2, backgroundColor: '#fff3e0', borderRadius: 1 }}>
@@ -323,7 +346,7 @@ const QRScannerPage: React.FC = () => {
                 Overdue Items
               </Typography>
               <Typography variant="h5" sx={{ fontWeight: 700, color: '#f59e0b', mt: 0.5 }}>
-                {checkoutService.getOverdueCheckouts().length}
+                {overdueCount}
               </Typography>
             </Box>
           </Box>

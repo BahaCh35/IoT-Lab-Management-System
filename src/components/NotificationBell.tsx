@@ -26,10 +26,23 @@ const NotificationBell: React.FC = () => {
     loadNotifications();
   }, []);
 
-  const loadNotifications = () => {
-    const allNotifications = notificationService.getNotifications();
-    setNotifications(allNotifications);
-    setUnreadCount(notificationService.getUnreadCount());
+  const loadNotifications = async () => {
+    try {
+      const allNotifications = await notificationService.getNotifications();
+      setNotifications(allNotifications);
+      const count = await notificationService.getUnreadCount();
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    }
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.read) {
+      await notificationService.markAsRead(notification.id);
+      await loadNotifications();
+    }
+    handleClosePopover();
   };
 
   const handleOpenPopover = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -40,32 +53,24 @@ const NotificationBell: React.FC = () => {
     setAnchorEl(null);
   };
 
-  const handleNotificationClick = (notification: Notification) => {
-    if (!notification.read) {
-      notificationService.markAsRead(notification.id);
-      loadNotifications();
-    }
-    handleClosePopover();
-  };
-
-  const handleDeleteNotification = (
+  const handleDeleteNotification = async (
     event: React.MouseEvent<HTMLButtonElement>,
     notificationId: string
   ) => {
     event.stopPropagation();
-    notificationService.deleteNotification(notificationId);
-    loadNotifications();
+    await notificationService.deleteNotification(notificationId);
+    await loadNotifications();
   };
 
-  const handleMarkAllAsRead = () => {
-    notificationService.markAllAsRead();
-    loadNotifications();
+  const handleMarkAllAsRead = async () => {
+    await notificationService.markAllAsRead();
+    await loadNotifications();
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     if (notifications.length > 0) {
-      notificationService.clearAll();
-      loadNotifications();
+      await notificationService.clearAll();
+      await loadNotifications();
       handleClosePopover();
     }
   };
@@ -187,7 +192,7 @@ const NotificationBell: React.FC = () => {
                             variant="caption"
                             sx={{ color: '#9ca3af', display: 'block', mt: 0.5 }}
                           >
-                            {new Date(notif.timestamp).toLocaleTimeString([], {
+                            {new Date(notif.createdAt).toLocaleTimeString([], {
                               hour: '2-digit',
                               minute: '2-digit',
                             })}

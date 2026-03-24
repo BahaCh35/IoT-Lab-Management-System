@@ -98,27 +98,32 @@ const AnalyticsPage: React.FC = () => {
     setReportOpen(true);
   };
 
-  const handleReportSubmit = () => {
-    // Create a maintenance task visible to the technician
-    maintenanceService.createMaintenanceRequest({
-      equipmentName: reportItem,
-      problemDescription: `[${reportType}] ${reportDesc}`,
-      reportedBy: { id: 'current-engineer', name: 'My Profile', email: 'engineer@novation.com', role: 'engineer', createdAt: new Date().toISOString() },
-      reportedDate: new Date().toISOString(),
-      priority: 'high',
-      location: { building: '', room: '', cabinet: '', drawer: '' },
-    });
+  const handleReportSubmit = async () => {
+    try {
+      // Create a maintenance task visible to the technician
+      await maintenanceService.createRequest({
+        equipmentId: 'unknown',
+        equipmentName: reportItem,
+        problemDescription: `[${reportType}] ${reportDesc}`,
+        reportedBy: { id: 'current-engineer', name: 'My Profile', email: 'engineer@novation.com', role: 'engineer', createdAt: new Date().toISOString() },
+        priority: 'high',
+        location: { building: '', room: '', cabinet: '', drawer: '' },
+      });
 
-    // Flag the damage for admin via the approval workflow
-    approvalService.createApproval({
-      type: 'damage-report',
-      requester: { id: 'current-engineer', name: 'My Profile', email: 'engineer@novation.com', role: 'engineer', createdAt: new Date().toISOString() },
-      description: `Damage reported on "${reportItem}": [${reportType}] ${reportDesc}`,
-      details: { equipmentName: reportItem, issueType: reportType, description: reportDesc },
-      requestedDate: new Date().toISOString().split('T')[0],
-    });
+      // Flag the damage for admin via the approval workflow
+      await approvalService.createApproval({
+        type: 'damage-report',
+        requester: { id: 'current-engineer', name: 'My Profile', email: 'engineer@novation.com', role: 'engineer', createdAt: new Date().toISOString() },
+        description: `Damage reported on "${reportItem}": [${reportType}] ${reportDesc}`,
+        details: { equipmentName: reportItem, issueType: reportType, description: reportDesc },
+        priority: 'medium',
+      });
 
-    setReportSent(true);
+      setReportSent(true);
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      alert('Failed to submit report. Please try again.');
+    }
   };
 
   // Modify dialog state

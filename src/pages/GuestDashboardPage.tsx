@@ -13,18 +13,25 @@ const GuestDashboardPage: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
-    const allEquipment = checkoutService.getEquipment();
-    const allLabs = labService.getLabs();
-    const allRooms = meetingRoomService.getMeetingRooms();
+    const loadStats = async () => {
+      try {
+        const allEquipment = await checkoutService.getEquipment();
+        const allLabs = await labService.getLabs();
+        const allRooms = await meetingRoomService.getMeetingRooms();
 
-    setStats({
-      totalEquipment: allEquipment.length,
-      availableEquipment: allEquipment.filter((e) => e.status === 'available').length,
-      totalMeetingRooms: allRooms.length,
-      availableMeetingRooms: allRooms.filter((r) => r.isActive).length,
-      totalLabs: allLabs.length,
-      availableLabs: allLabs.filter((l) => l.isActive).length,
-    });
+        setStats({
+          totalEquipment: allEquipment.length,
+          availableEquipment: allEquipment.filter((e) => e.status === 'available').length,
+          totalMeetingRooms: allRooms.length,
+          availableMeetingRooms: allRooms.filter((r) => r.isActive).length,
+          totalLabs: allLabs.length,
+          availableLabs: allLabs.filter((l) => l.isActive).length,
+        });
+      } catch (error) {
+        console.error('Error loading dashboard stats:', error);
+      }
+    };
+    loadStats();
   }, []);
 
   return (

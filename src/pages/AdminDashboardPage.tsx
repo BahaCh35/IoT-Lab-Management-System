@@ -32,26 +32,51 @@ const AdminDashboardPage: React.FC = () => {
   };
 
   useEffect(() => {
-    const pending = approvalService.getApprovals({ status: 'pending' });
-    setPendingApprovals(pending);
-    setLiveCheckouts(checkoutStore.getItems());
-    setPendingPartsRequests(partsService.getPartsRequests({ status: 'pending' }));
-    setApprovedPartsRequests(partsService.getPartsRequests({ status: 'approved' }));
+    const loadData = async () => {
+      try {
+        const pending = await approvalService.getApprovalsByStatus('pending');
+        setPendingApprovals(pending);
+        setLiveCheckouts(checkoutStore.getItems());
+        const pendingParts = await partsService.getPartsRequestsByStatus('pending');
+        setPendingPartsRequests(pendingParts);
+        const approvedParts = await partsService.getPartsRequestsByStatus('approved');
+        setApprovedPartsRequests(approvedParts);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      }
+    };
+    loadData();
   }, []);
 
-  const reloadParts = () => {
-    setPendingPartsRequests(partsService.getPartsRequests({ status: 'pending' }));
-    setApprovedPartsRequests(partsService.getPartsRequests({ status: 'approved' }));
+  const reloadParts = async () => {
+    try {
+      const pendingParts = await partsService.getPartsRequestsByStatus('pending');
+      setPendingPartsRequests(pendingParts);
+      const approvedParts = await partsService.getPartsRequestsByStatus('approved');
+      setApprovedPartsRequests(approvedParts);
+    } catch (error) {
+      console.error('Error reloading parts:', error);
+    }
   };
 
-  const handleApprovePart = (requestId: string) => {
-    partsService.approveParts(requestId, mockAdmin);
-    reloadParts();
+  const handleApprovePart = async (requestId: string) => {
+    try {
+      await partsService.approvePartsRequest(requestId);
+      await reloadParts();
+    } catch (error) {
+      console.error('Error approving part request:', error);
+      alert('Failed to approve part request. Please try again.');
+    }
   };
 
-  const handleRejectPart = (requestId: string) => {
-    partsService.rejectParts(requestId);
-    reloadParts();
+  const handleRejectPart = async (requestId: string) => {
+    try {
+      await partsService.rejectPartsRequest(requestId);
+      await reloadParts();
+    } catch (error) {
+      console.error('Error rejecting part request:', error);
+      alert('Failed to reject part request. Please try again.');
+    }
   };
 
   const handleReviewPart = (req: PartsRequest) => {
@@ -59,28 +84,48 @@ const AdminDashboardPage: React.FC = () => {
     setPartsReviewDialogOpen(true);
   };
 
-  const handlePartsDialogApprove = () => {
+  const handlePartsDialogApprove = async () => {
     if (!selectedPartsRequest) return;
-    partsService.approveParts(selectedPartsRequest.id, mockAdmin);
-    reloadParts();
-    setPartsReviewDialogOpen(false);
+    try {
+      await partsService.approvePartsRequest(selectedPartsRequest.id);
+      await reloadParts();
+      setPartsReviewDialogOpen(false);
+    } catch (error) {
+      console.error('Error approving part:', error);
+      alert('Failed to approve part. Please try again.');
+    }
   };
 
-  const handlePartsDialogReject = () => {
+  const handlePartsDialogReject = async () => {
     if (!selectedPartsRequest) return;
-    partsService.rejectParts(selectedPartsRequest.id);
-    reloadParts();
-    setPartsReviewDialogOpen(false);
+    try {
+      await partsService.rejectPartsRequest(selectedPartsRequest.id);
+      await reloadParts();
+      setPartsReviewDialogOpen(false);
+    } catch (error) {
+      console.error('Error rejecting part:', error);
+      alert('Failed to reject part. Please try again.');
+    }
   };
 
-  const handleCancelPart = (requestId: string) => {
-    partsService.cancelParts(requestId);
-    reloadParts();
+  const handleCancelPart = async (requestId: string) => {
+    try {
+      await partsService.cancelPartsRequest(requestId);
+      await reloadParts();
+    } catch (error) {
+      console.error('Error cancelling part request:', error);
+      alert('Failed to cancel part request. Please try again.');
+    }
   };
 
-  const handleMarkArrived = (requestId: string) => {
-    partsService.markPartsArrived(requestId);
-    reloadParts();
+  const handleMarkArrived = async (requestId: string) => {
+    try {
+      await partsService.markPartsArrived(requestId);
+      await reloadParts();
+    } catch (error) {
+      console.error('Error marking part as arrived:', error);
+      alert('Failed to mark part as arrived. Please try again.');
+    }
   };
 
   const handleReviewApproval = (approval: ApprovalRequest) => {
@@ -95,25 +140,30 @@ const AdminDashboardPage: React.FC = () => {
     setActionDialogOpen(true);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!selectedApproval) return;
 
-    if (actionType === 'approve') {
-      approvalService.approveRequest(selectedApproval.id, mockAdmin);
-    } else if (actionType === 'reject') {
-      if (!rejectReason.trim()) {
-        alert('Please provide a rejection reason');
-        return;
+    try {
+      if (actionType === 'approve') {
+        await approvalService.approveRequest(selectedApproval.id);
+      } else if (actionType === 'reject') {
+        if (!rejectReason.trim()) {
+          alert('Please provide a rejection reason');
+          return;
+        }
+        await approvalService.rejectRequest(selectedApproval.id, rejectReason);
       }
-      approvalService.rejectRequest(selectedApproval.id, mockAdmin, rejectReason);
+
+      // Reload data
+      const pending = await approvalService.getApprovalsByStatus('pending');
+      setPendingApprovals(pending);
+      setLiveCheckouts(checkoutStore.getItems());
+
+      setActionDialogOpen(false);
+    } catch (error) {
+      console.error('Error processing approval:', error);
+      alert('Failed to process approval. Please try again.');
     }
-
-    // Reload data
-    const pending = approvalService.getApprovals({ status: 'pending' });
-    setPendingApprovals(pending);
-    setLiveCheckouts(checkoutStore.getItems());
-
-    setActionDialogOpen(false);
   };
 
   const getPriorityColor = (priority: string) => {

@@ -50,13 +50,20 @@ const AdminActivityLogPage: React.FC = () => {
   const [stats, setStats] = useState({ total: 0, approved: 0, rejected: 0, created: 0 });
 
   useEffect(() => {
-    const logs = approvalService.getActivityLog(200);
-    setStats({
-      total:    logs.length,
-      approved: logs.filter((l: any) => l.action === 'approved').length,
-      rejected: logs.filter((l: any) => l.action === 'rejected').length,
-      created:  logs.filter((l: any) => l.action === 'created').length,
-    });
+    const loadStats = async () => {
+      try {
+        const logs = await approvalService.getActivityLog(200);
+        setStats({
+          total:    logs.length,
+          approved: logs.filter((l: any) => l.action === 'approved').length,
+          rejected: logs.filter((l: any) => l.action === 'rejected').length,
+          created:  logs.filter((l: any) => l.action === 'created').length,
+        });
+      } catch (error) {
+        console.error('Error loading activity logs:', error);
+      }
+    };
+    loadStats();
   }, []);
 
   const filteredLogs = systemLogs.filter((log) => {

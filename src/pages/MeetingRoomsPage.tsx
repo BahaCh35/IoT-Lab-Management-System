@@ -21,8 +21,13 @@ const MeetingRoomsPage: React.FC = () => {
     amenities: [] as string[],
   });
 
-  const reload = () => {
-    setRooms(meetingRoomService.getMeetingRooms());
+  const reload = async () => {
+    try {
+      const roomsData = await meetingRoomService.getMeetingRooms();
+      setRooms(roomsData);
+    } catch (error) {
+      console.error('Error loading meeting rooms:', error);
+    }
   };
 
   useEffect(() => { reload(); }, []);

@@ -4,6 +4,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Box } from '@mui/material';
 import theme from './theme';
+import { apiClient } from './services/api';
 
 // Components
 import Header from './components/Header';
@@ -93,10 +94,14 @@ const App: React.FC = () => {
       localStorage.removeItem(userNotificationsKey);
     }
 
+    // Clear API token
+    apiClient.setToken(null);
+
     // Clear global auth data
     setUser(null);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('auth_token');
     localStorage.removeItem('nova_welcome_seen');
   };
 

@@ -15,6 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import { authService } from '../services/api';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -24,103 +25,41 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const detectRoleFromEmail = (emailAddress: string): 'admin' | 'engineer' | 'technician' | 'guest' => {
-    const lowerEmail = emailAddress.toLowerCase();
-    if (lowerEmail.includes('@admin') || lowerEmail.includes('admin@novation.com')) {
-      return 'admin';
-    } else if (lowerEmail.includes('@engineer') || lowerEmail.includes('engineer@novation.com')) {
-      return 'engineer';
-    } else if (lowerEmail.includes('@technician') || lowerEmail.includes('technician@novation.com')) {
-      return 'technician';
-    }
-    return 'guest'; // Default fallback for any other email
-  };
-
-  const getDisplayName = (emailAddress: string, role: string): string => {
-    const lowerEmail = emailAddress.toLowerCase();
-
-    // Map of admin emails to names
-    const adminNames: Record<string, string> = {
-      'admin@novation.com': 'Ahmed (Admin)',
-      'admin1@novation.com': 'Asma (Admin)',
-      'admin2@novation.com': 'Ali (Admin)',
-    };
-
-    // Map of engineer emails to names
-    const engineerNames: Record<string, string> = {
-      'engineer@novation.com': 'Ahmed',
-      'engineer1@novation.com': 'Asma',
-      'engineer2@novation.com': 'Ali',
-    };
-
-    // Map of technician emails to names
-    const technicianNames: Record<string, string> = {
-      'technician@novation.com': 'John (Technician)',
-      'technician1@novation.com': 'Sarah (Technician)',
-      'technician2@novation.com': 'Mike (Technician)',
-    };
-
-    // Map of guest emails to names
-    const guestNames: Record<string, string> = {
-      'contractor@company.com': 'Contractor User',
-      'visitor@external.com': 'Visitor User',
-      'guest@novation.com': 'Guest User',
-    };
-
-    switch (role) {
-      case 'admin':
-        return adminNames[lowerEmail] || 'Admin User';
-      case 'engineer':
-        return engineerNames[lowerEmail] || 'Engineer User';
-      case 'technician':
-        return technicianNames[lowerEmail] || 'Technician User';
-      case 'guest':
-        return guestNames[lowerEmail] || 'Guest User';
-      default:
-        return 'User';
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    // Mock authentication - replace with real API call
-    if (email && password) {
-      // Determine role based on email domain
-      const role = detectRoleFromEmail(email);
-      const name = getDisplayName(email, role);
+    if (!email || !password) {
+      setError('Please enter both email and password');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await authService.login(email, password);
+      const user = response.user;
 
       // Determine where to navigate based on role
-      let redirectPath = '/dashboard';
-      if (role === 'admin') {
+      let redirectPath = '/analytics';
+      if (user.role === 'admin') {
         redirectPath = '/admin';
-      } else if (role === 'technician') {
+      } else if (user.role === 'technician') {
         redirectPath = '/technician';
-      } else if (role === 'guest') {
+      } else if (user.role === 'guest') {
         redirectPath = '/guest/equipment';
       }
 
-      const mockUser = {
-        id: Date.now().toString(),
-        name: name,
-        email: email,
-        role: role,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
-        createdAt: new Date().toISOString(),
-      };
-
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      localStorage.setItem('token', 'mock-token-' + Date.now());
+      // Store user in localStorage for App.tsx to pick up
+      localStorage.setItem('user', JSON.stringify(user));
 
       // Give a brief moment for the App component to detect the change, then navigate
       setTimeout(() => {
         setLoading(false);
         navigate(redirectPath);
       }, 300);
-    } else {
-      setError('Please enter both email and password');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed. Please check your credentials.');
       setLoading(false);
     }
   };

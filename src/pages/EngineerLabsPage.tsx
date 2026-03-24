@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -129,15 +129,28 @@ const EngineerLabsPage: React.FC = () => {
   const [form, setForm] = useState<BookingForm>(emptyForm());
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [successMsg, setSuccessMsg] = useState('');
+  const [visibleLabs, setVisibleLabs] = useState<(typeof mockLabs)>([]);
+
+  useEffect(() => {
+    const loadVisibleLabs = async () => {
+      try {
+        const allLabs = await labService.getLabs();
+        const activeLabNames = new Set(allLabs.filter((l) => l.isActive).map((l) => l.name));
+        const visible = mockLabs.filter((m) => {
+          const inAdmin = allLabs.some((a) => a.name === m.name);
+          return !inAdmin || activeLabNames.has(m.name);
+        });
+        setVisibleLabs(visible);
+      } catch (error) {
+        console.error('Error loading labs:', error);
+        setVisibleLabs(mockLabs); // Fallback to showing all mock labs
+      }
+    };
+    loadVisibleLabs();
+  }, []);
 
   const getAvailabilityColor = (availability: string) =>
     availability === 'Available' ? '#10b981' : '#f59e0b';
-
-  const activeLabNames = new Set(labService.getLabs().filter((l) => l.isActive).map((l) => l.name));
-  const visibleLabs = mockLabs.filter((m) => {
-    const inAdmin = labService.getLabs().some((a) => a.name === m.name);
-    return !inAdmin || activeLabNames.has(m.name);
-  });
 
   const openReserve = (lab: (typeof mockLabs)[0]) => {
     setSelectedLab(lab);
@@ -163,7 +176,7 @@ const EngineerLabsPage: React.FC = () => {
       requester: { id: 'current-engineer', name: 'My Profile', email: 'engineer@novation.com', role: 'engineer', createdAt: new Date().toISOString() },
       description: `Lab reservation: ${selectedLab?.name} on ${form.date} at ${form.startTime} for ${form.duration}`,
       details: { labName: selectedLab?.name, date: form.date, startTime: form.startTime, duration: form.duration, purpose: form.purpose, participants: form.participants },
-      requestedDate: form.date,
+      priority: 'medium',
     });
     setSuccessMsg(`Reservation request for "${selectedLab?.name}" submitted! Awaiting admin approval.`);
     setForm(emptyForm());

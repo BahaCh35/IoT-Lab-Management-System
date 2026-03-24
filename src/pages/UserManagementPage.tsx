@@ -20,11 +20,36 @@ const UserManagementPage: React.FC = () => {
     phone: '',
   });
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const stats = userService.getUserStats();
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    inactiveUsers: 0,
+    engineers: 0,
+    admins: 0,
+  });
+  const [loading, setLoading] = useState(false);
+
+  const loadUsers = async () => {
+    try {
+      const allUsers = await userService.getUsers();
+      setUsers(allUsers);
+
+      // Calculate stats from loaded users
+      const statsData = await userService.getUserStats();
+      setStats({
+        totalUsers: statsData.total,
+        activeUsers: statsData.active,
+        inactiveUsers: statsData.inactive,
+        engineers: statsData.byRole['engineer'] || 0,
+        admins: statsData.byRole['admin'] || 0,
+      });
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
 
   useEffect(() => {
-    const allUsers = userService.getUsers();
-    setUsers(allUsers);
+    loadUsers();
   }, []);
 
   const handleAddClick = () => {
@@ -44,39 +69,60 @@ const UserManagementPage: React.FC = () => {
     setOpenDialog(true);
   };
 
-  const handleSave = () => {
-    const userData = {
-      name: formData.name,
-      email: formData.email,
-      department: formData.department,
-      phone: formData.phone,
-    };
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const userData = {
+        name: formData.name,
+        email: formData.email,
+        department: formData.department,
+        phone: formData.phone,
+      };
 
-    if (editingUser) {
-      userService.updateUser(editingUser.id, userData);
-    } else {
-      userService.createUser(userData);
-    }
+      if (editingUser) {
+        await userService.updateUser(editingUser.id, userData);
+      } else {
+        await userService.createUser({ ...userData, password: 'password123' });
+      }
 
-    setUsers(userService.getUsers());
-    setOpenDialog(false);
-  };
-
-  const handleToggleStatus = (id: string, isActive: boolean) => {
-    if (isActive) {
-      userService.deactivateUser(id);
-    } else {
-      userService.activateUser(id);
-    }
-    setUsers(userService.getUsers());
-  };
-
-  const handleDeleteConfirm = () => {
-    if (editingUser) {
-      userService.deleteUser(editingUser.id);
-      setUsers(userService.getUsers());
-      setDeleteConfirmOpen(false);
+      await loadUsers();
       setOpenDialog(false);
+    } catch (error) {
+      console.error('Error saving user:', error);
+      alert('Failed to save user. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleStatus = async (id: string, isActive: boolean) => {
+    try {
+      if (isActive) {
+        await userService.deactivateUser(id);
+      } else {
+        await userService.activateUser(id);
+      }
+      await loadUsers();
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      alert('Failed to update user status. Please try again.');
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (editingUser) {
+      setLoading(true);
+      try {
+        await userService.deleteUser(editingUser.id);
+        await loadUsers();
+        setDeleteConfirmOpen(false);
+        setOpenDialog(false);
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Failed to delete user. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
