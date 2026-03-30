@@ -47,4 +47,9 @@ class Equipment extends Model
     {
         return $this->hasMany(MaintenanceRequest::class);
     }
+
+    public function storageItems()
+    {
+        return $this->hasMany(StorageItem::class, 'equipment_id');
+    }
 }

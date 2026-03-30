@@ -26,6 +26,7 @@ const UserManagementPage: React.FC = () => {
     inactiveUsers: 0,
     engineers: 0,
     admins: 0,
+    technicians: 0,
   });
   const [loading, setLoading] = useState(false);
 
@@ -37,11 +38,12 @@ const UserManagementPage: React.FC = () => {
       // Calculate stats from loaded users
       const statsData = await userService.getUserStats();
       setStats({
-        totalUsers: statsData.total,
-        activeUsers: statsData.active,
-        inactiveUsers: statsData.inactive,
-        engineers: statsData.byRole['engineer'] || 0,
-        admins: statsData.byRole['admin'] || 0,
+        totalUsers: statsData.totalUsers,
+        activeUsers: statsData.activeUsers,
+        inactiveUsers: statsData.inactiveUsers,
+        engineers: statsData.engineers || 0,
+        admins: statsData.admins || 0,
+        technicians: statsData.technicians || 0,
       });
     } catch (error) {
       console.error('Error loading users:', error);
@@ -141,7 +143,7 @@ const UserManagementPage: React.FC = () => {
       </Box>
 
       {/* Stats */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 3, mb: 4 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(5, 1fr)' }, gap: 3, mb: 4 }}>
         <Card sx={{ backgroundColor: '#f0f4ff' }}>
           <CardContent>
             <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 600 }}>
@@ -179,6 +181,16 @@ const UserManagementPage: React.FC = () => {
             </Typography>
             <Typography variant="h4" sx={{ fontWeight: 700, color: '#ef4444', mt: 1 }}>
               {stats.admins}
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ backgroundColor: '#f3e8ff' }}>
+          <CardContent>
+            <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 600 }}>
+              Technicians
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 700, color: '#8b5cf6', mt: 1 }}>
+              {stats.technicians}
             </Typography>
           </CardContent>
         </Card>

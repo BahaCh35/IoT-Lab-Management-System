@@ -90,6 +90,41 @@ class EquipmentController extends Controller
         return response()->json(['message' => 'Equipment deleted successfully']);
     }
 
+    public function batchUpdateLocations(Request $request)
+    {
+        $updates = $request->validate([
+            'updates' => 'required|array',
+            'updates.*.id' => 'required|string|exists:equipment,id',
+            'updates.*.location' => 'required|array',
+            'updates.*.location.building' => 'nullable|string',
+            'updates.*.location.room' => 'nullable|string',
+            'updates.*.location.cabinet' => 'nullable|string',
+            'updates.*.location.drawer' => 'nullable|string',
+            'updates.*.location.shelf' => 'nullable|string',
+        ]);
+
+        $updatedEquipment = [];
+
+        foreach ($updates['updates'] as $update) {
+            $equipment = Equipment::findOrFail($update['id']);
+            $equipment->update([
+                'building' => $update['location']['building'],
+                'room' => $update['location']['room'],
+                'cabinet' => $update['location']['cabinet'],
+                'drawer' => $update['location']['drawer'],
+                'shelf' => $update['location']['shelf'],
+            ]);
+
+            $updatedEquipment[] = $this->formatEquipment($equipment->fresh());
+        }
+
+        return response()->json([
+            'message' => 'Equipment locations updated successfully',
+            'updated_equipment' => $updatedEquipment,
+            'count' => count($updatedEquipment)
+        ]);
+    }
+
     private function formatEquipment($equipment)
     {
         return [

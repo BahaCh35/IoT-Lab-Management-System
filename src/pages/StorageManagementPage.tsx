@@ -1,138 +1,71 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
   CardContent,
   Typography,
   Chip,
+  CircularProgress,
 } from '@mui/material';
 import StorageIcon from '@mui/icons-material/Storage';
-
-interface StorageItem {
-  id: string;
-  name: string;
-  category: string;
-  quantity: number;
-  addedDate: string;
-}
-
-interface DrawerData {
-  id: string;
-  name: string;
-  items: StorageItem[];
-}
-
-interface CabinetData {
-  id: string;
-  name: string;
-  drawers: DrawerData[];
-}
-
-// Mock storage data
-const initialStorageData: CabinetData[] = [
-  {
-    id: 'cabinet-1',
-    name: 'Cabinet A',
-    drawers: [
-      {
-        id: 'drawer-1-1',
-        name: 'Drawer 1',
-        items: [
-          { id: '1', name: 'Arduino Uno', category: 'Microcontroller', quantity: 5, addedDate: '2024-01-15' },
-          { id: '2', name: 'Resistor Kit', category: 'Component', quantity: 10, addedDate: '2024-01-10' },
-        ],
-      },
-      {
-        id: 'drawer-1-2',
-        name: 'Drawer 2',
-        items: [
-          { id: '3', name: 'LED Assortment', category: 'Component', quantity: 20, addedDate: '2024-01-12' },
-        ],
-      },
-      {
-        id: 'drawer-1-3',
-        name: 'Drawer 3',
-        items: [
-          { id: '4', name: 'Capacitor Pack', category: 'Component', quantity: 15, addedDate: '2024-01-08' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'cabinet-2',
-    name: 'Cabinet B',
-    drawers: [
-      {
-        id: 'drawer-2-1',
-        name: 'Drawer 1',
-        items: [
-          { id: '5', name: 'Raspberry Pi 4', category: 'Microcontroller', quantity: 3, addedDate: '2024-01-14' },
-        ],
-      },
-      {
-        id: 'drawer-2-2',
-        name: 'Drawer 2',
-        items: [
-          { id: '6', name: 'Jumper Wires', category: 'Component', quantity: 8, addedDate: '2024-01-11' },
-          { id: '7', name: 'USB Cables', category: 'Component', quantity: 6, addedDate: '2024-01-13' },
-        ],
-      },
-      {
-        id: 'drawer-2-3',
-        name: 'Drawer 3',
-        items: [],
-      },
-    ],
-  },
-  {
-    id: 'cabinet-3',
-    name: 'Cabinet C',
-    drawers: [
-      {
-        id: 'drawer-3-1',
-        name: 'Drawer 1',
-        items: [
-          { id: '8', name: 'Soldering Iron', category: 'Tool', quantity: 2, addedDate: '2024-01-09' },
-          { id: '9', name: 'Multimeter', category: 'Tool', quantity: 4, addedDate: '2024-01-07' },
-        ],
-      },
-      {
-        id: 'drawer-3-2',
-        name: 'Drawer 2',
-        items: [
-          { id: '10', name: 'Breadboard Set', category: 'Tool', quantity: 3, addedDate: '2024-01-16' },
-        ],
-      },
-      {
-        id: 'drawer-3-3',
-        name: 'Drawer 3',
-        items: [
-          { id: '11', name: 'Oscilloscope Probes', category: 'Tool', quantity: 2, addedDate: '2024-01-06' },
-        ],
-      },
-    ],
-  },
-];
+import { storageService, CabinetData, StorageItemData } from '../services/api/storageService';
 
 const getCategoryColor = (category: string) => {
   const colors: { [key: string]: string } = {
     Microcontroller: '#1a73e8',
+    microcontroller: '#1a73e8',
     Component: '#7c3aed',
+    component: '#7c3aed',
     Tool: '#f59e0b',
+    tool: '#f59e0b',
     Sensor: '#10b981',
+    sensor: '#10b981',
     Other: '#6b7280',
+    other: '#6b7280',
   };
   return colors[category] || '#6b7280';
 };
 
 const StorageManagementPage: React.FC = () => {
+  const [storageData, setStorageData] = useState<CabinetData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadStorageData();
+  }, []);
+
+  const loadStorageData = async () => {
+    try {
+      setLoading(true);
+      const cabinets = await storageService.getCabinetsWithDrawersAndItems();
+      setStorageData(cabinets);
+    } catch (error) {
+      console.error('Error loading storage data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getTotalItems = () => {
-    return initialStorageData.reduce((total, cabinet) => {
+    return storageData.reduce((total, cabinet) => {
       return total + cabinet.drawers.reduce((drawerTotal, drawer) => {
         return drawerTotal + drawer.items.length;
       }, 0);
     }, 0);
   };
+
+  if (loading) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+          <CircularProgress size={60} />
+          <Typography variant="h6" sx={{ ml: 2 }}>
+            Loading storage data...
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>
@@ -152,7 +85,7 @@ const StorageManagementPage: React.FC = () => {
                 Total Cabinets
               </Typography>
               <Typography variant="h5" sx={{ fontWeight: 700, color: '#1a73e8', mt: 0.5 }}>
-                {initialStorageData.length}
+                {storageData.length}
               </Typography>
             </Box>
             <Box>
@@ -160,7 +93,7 @@ const StorageManagementPage: React.FC = () => {
                 Total Drawers
               </Typography>
               <Typography variant="h5" sx={{ fontWeight: 700, color: '#3b82f6', mt: 0.5 }}>
-                {initialStorageData.reduce((total, cabinet) => total + cabinet.drawers.length, 0)}
+                {storageData.reduce((total, cabinet) => total + cabinet.drawers.length, 0)}
               </Typography>
             </Box>
             <Box>
@@ -177,7 +110,7 @@ const StorageManagementPage: React.FC = () => {
 
       {/* Storage Cabinets Grid */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3 }}>
-        {initialStorageData.map((cabinet) => (
+        {storageData.map((cabinet) => (
           <Card key={cabinet.id} sx={{ backgroundColor: '#f8fafc' }}>
             <CardContent>
               <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, color: '#1a73e8' }}>

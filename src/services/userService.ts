@@ -39,10 +39,13 @@ export const userService = {
   },
 
   async getUserStats(): Promise<{
-    total: number;
-    byRole: Record<string, number>;
-    active: number;
-    inactive: number;
+    totalUsers: number;
+    activeUsers: number;
+    inactiveUsers: number;
+    engineers: number;
+    admins: number;
+    technicians: number;
+    byDepartment: Record<string, number>;
   }> {
     return apiUserService.getUserStats();
   },

@@ -22,19 +22,24 @@ class MeetingRoomController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string',
-            'capacity' => 'required|integer',
+        $validatedData = $request->validate([
+            'name' => 'required|string|max:255',
+            'capacity' => 'required|integer|min:1|max:1000',
+            'floor' => 'sometimes|integer|min:1|max:50',
+            'location' => 'sometimes|string|max:255',
+            'amenities' => 'sometimes|array',
+            'amenities.*' => 'string',
+            'isActive' => 'sometimes|boolean', // Accept isActive from frontend
         ]);
 
         $room = MeetingRoom::create([
             'id' => 'room-' . time(),
-            'name' => $request->name,
-            'capacity' => $request->capacity,
-            'floor' => $request->floor ?? 1,
-            'location' => $request->location ?? 'TBD',
-            'amenities' => $request->amenities ?? [],
-            'is_active' => $request->is_active ?? true,
+            'name' => $validatedData['name'],
+            'capacity' => $validatedData['capacity'],
+            'floor' => $validatedData['floor'] ?? 1,
+            'location' => $validatedData['location'] ?? 'TBD',
+            'amenities' => $validatedData['amenities'] ?? [],
+            'is_active' => $validatedData['isActive'] ?? true, // Map isActive to is_active
         ]);
 
         return response()->json($this->formatRoom($room), 201);
@@ -42,9 +47,62 @@ class MeetingRoomController extends Controller
 
     public function update(Request $request, $id)
     {
-        $room = MeetingRoom::findOrFail($id);
-        $room->update($request->only(['name', 'capacity', 'floor', 'location', 'amenities', 'is_active']));
-        return response()->json($this->formatRoom($room));
+        try {
+            // Find the room
+            $room = MeetingRoom::findOrFail($id);
+
+            // Validate the request
+            $validatedData = $request->validate([
+                'name' => 'sometimes|string|max:255',
+                'capacity' => 'sometimes|integer|min:1|max:1000',
+                'floor' => 'sometimes|integer|min:1|max:50',
+                'location' => 'sometimes|string|max:255',
+                'amenities' => 'sometimes|array',
+                'amenities.*' => 'string',
+                'isActive' => 'sometimes|boolean', // Accept isActive from frontend
+            ]);
+
+            // Map frontend field names to database field names
+            $updateData = [];
+            foreach ($validatedData as $key => $value) {
+                if ($key === 'isActive') {
+                    // Convert isActive (frontend) to is_active (database)
+                    $updateData['is_active'] = $value;
+                } else {
+                    $updateData[$key] = $value;
+                }
+            }
+
+            // Update the room
+            $room->update($updateData);
+
+            return response()->json([
+                'success' => true,
+                'data' => $this->formatRoom($room->fresh()),
+                'message' => 'Meeting room updated successfully'
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Meeting room not found',
+                'error' => 'ROOM_NOT_FOUND'
+            ], 404);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating the room',
+                'error' => 'INTERNAL_ERROR'
+            ], 500);
+        }
     }
 
     public function destroy($id)

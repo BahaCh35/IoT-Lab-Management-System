@@ -15,6 +15,9 @@ use App\Http\Controllers\Api\ComponentInventoryController;
 use App\Http\Controllers\Api\ApprovalController;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\StorageCabinetController;
+use App\Http\Controllers\Api\StorageDrawerController;
+use App\Http\Controllers\Api\StorageItemController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -35,7 +38,40 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/equipment/{id}', [EquipmentController::class, 'show']);
     Route::post('/equipment', [EquipmentController::class, 'store']);
     Route::put('/equipment/{id}', [EquipmentController::class, 'update']);
+    Route::patch('/equipment/batch-update-locations', [EquipmentController::class, 'batchUpdateLocations']);
     Route::delete('/equipment/{id}', [EquipmentController::class, 'destroy']);
+
+    // Storage Management
+    // Storage Cabinets
+    Route::get('/storage/cabinets', [StorageCabinetController::class, 'index']);
+    Route::get('/storage/cabinets/stats', [StorageCabinetController::class, 'stats']);
+    Route::get('/storage/cabinets/{id}', [StorageCabinetController::class, 'show']);
+    Route::post('/storage/cabinets', [StorageCabinetController::class, 'store']);
+    Route::put('/storage/cabinets/{id}', [StorageCabinetController::class, 'update']);
+    Route::delete('/storage/cabinets/{id}', [StorageCabinetController::class, 'destroy']);
+
+    // Storage Drawers
+    Route::get('/storage/drawers', [StorageDrawerController::class, 'index']);
+    Route::get('/storage/drawers/cabinet/{cabinetId}', [StorageDrawerController::class, 'byCabinet']);
+    Route::get('/storage/drawers/{id}', [StorageDrawerController::class, 'show']);
+    Route::post('/storage/drawers', [StorageDrawerController::class, 'store']);
+    Route::put('/storage/drawers/{id}', [StorageDrawerController::class, 'update']);
+    Route::patch('/storage/drawers/batch-reorder', [StorageDrawerController::class, 'batchReorder']);
+    Route::delete('/storage/drawers/{id}', [StorageDrawerController::class, 'destroy']);
+
+    // Storage Items
+    Route::get('/storage/items', [StorageItemController::class, 'index']);
+    Route::get('/storage/items/search', [StorageItemController::class, 'search']);
+    Route::get('/storage/items/category/{category}', [StorageItemController::class, 'byCategory']);
+    Route::get('/storage/items/drawer/{drawerId}', [StorageItemController::class, 'byDrawer']);
+    Route::get('/storage/items/low-stock', [StorageItemController::class, 'lowStock']);
+    Route::get('/storage/items/stats', [StorageItemController::class, 'stats']);
+    Route::get('/storage/items/{id}', [StorageItemController::class, 'show']);
+    Route::post('/storage/items', [StorageItemController::class, 'store']);
+    Route::put('/storage/items/{id}', [StorageItemController::class, 'update']);
+    Route::patch('/storage/items/batch-move', [StorageItemController::class, 'batchMove']);
+    Route::post('/storage/items/{id}/link-equipment', [StorageItemController::class, 'linkEquipment']);
+    Route::delete('/storage/items/{id}', [StorageItemController::class, 'destroy']);
 
     // Checkouts
     Route::get('/checkouts', [CheckoutController::class, 'index']);

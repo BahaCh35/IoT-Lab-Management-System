@@ -1,30 +1,27 @@
 import { Equipment, Checkout } from '../types';
 import { checkoutService as apiCheckoutService } from './api/checkoutService';
+import { equipmentService } from './equipmentService';
 
 export const checkoutService = {
-  // Equipment methods
+  // Equipment methods (delegate to equipmentService)
   async getEquipment(): Promise<Equipment[]> {
-    return apiCheckoutService.getEquipment();
+    return equipmentService.getEquipment();
   },
 
   async getEquipmentById(id: string): Promise<Equipment | undefined> {
-    try {
-      return await apiCheckoutService.getEquipmentById(id);
-    } catch {
-      return undefined;
-    }
+    return equipmentService.getEquipmentById(id);
   },
 
   async getEquipmentByCategory(category: Equipment['category']): Promise<Equipment[]> {
-    return apiCheckoutService.getEquipmentByCategory(category);
+    return equipmentService.getEquipmentByCategory(category);
   },
 
   async getAvailableEquipment(): Promise<Equipment[]> {
-    return apiCheckoutService.getAvailableEquipment();
+    return equipmentService.getAvailableEquipment();
   },
 
   async searchEquipment(query: string): Promise<Equipment[]> {
-    return apiCheckoutService.searchEquipment(query);
+    return equipmentService.searchEquipment(query);
   },
 
   // Checkout methods

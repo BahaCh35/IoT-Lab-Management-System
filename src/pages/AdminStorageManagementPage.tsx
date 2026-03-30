@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -16,118 +16,39 @@ import {
   InputLabel,
   Chip,
   IconButton,
+  Badge,
+  Snackbar,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import StorageIcon from '@mui/icons-material/Storage';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import SaveIcon from '@mui/icons-material/Save';
+import UndoIcon from '@mui/icons-material/Undo';
+import { equipmentService } from '../services/equipmentService';
+import { storageService, CabinetData as APICabinetData, DrawerData as APIDrawerData, StorageItemData } from '../services/api/storageService';
+import { Equipment } from '../types';
 
-interface StorageItem {
-  id: string;
-  name: string;
-  category: string;
-  quantity: number;
-  addedDate: string;
+// Use the API types directly
+type CabinetData = APICabinetData;
+type DrawerData = APIDrawerData;
+type StorageItem = StorageItemData;
+
+interface PendingChange {
+  itemId: string;
+  equipmentId?: string;
+  originalLocation: {
+    cabinetId: string;
+    drawerId: string;
+  };
+  newLocation: {
+    cabinetId: string;
+    drawerId: string;
+  };
 }
-
-interface DrawerData {
-  id: string;
-  name: string;
-  items: StorageItem[];
-}
-
-interface CabinetData {
-  id: string;
-  name: string;
-  drawers: DrawerData[];
-}
-
-// Mock storage data
-const initialStorageData: CabinetData[] = [
-  {
-    id: 'cabinet-1',
-    name: 'Cabinet A',
-    drawers: [
-      {
-        id: 'drawer-1-1',
-        name: 'Drawer 1',
-        items: [
-          { id: '1', name: 'Arduino Uno', category: 'Microcontroller', quantity: 5, addedDate: '2024-01-15' },
-          { id: '2', name: 'Resistor Kit', category: 'Component', quantity: 10, addedDate: '2024-01-10' },
-        ],
-      },
-      {
-        id: 'drawer-1-2',
-        name: 'Drawer 2',
-        items: [
-          { id: '3', name: 'LED Assortment', category: 'Component', quantity: 20, addedDate: '2024-01-12' },
-        ],
-      },
-      {
-        id: 'drawer-1-3',
-        name: 'Drawer 3',
-        items: [
-          { id: '4', name: 'Capacitor Pack', category: 'Component', quantity: 15, addedDate: '2024-01-08' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'cabinet-2',
-    name: 'Cabinet B',
-    drawers: [
-      {
-        id: 'drawer-2-1',
-        name: 'Drawer 1',
-        items: [
-          { id: '5', name: 'Raspberry Pi 4', category: 'Microcontroller', quantity: 3, addedDate: '2024-01-14' },
-        ],
-      },
-      {
-        id: 'drawer-2-2',
-        name: 'Drawer 2',
-        items: [
-          { id: '6', name: 'Jumper Wires', category: 'Component', quantity: 8, addedDate: '2024-01-11' },
-          { id: '7', name: 'USB Cables', category: 'Component', quantity: 6, addedDate: '2024-01-13' },
-        ],
-      },
-      {
-        id: 'drawer-2-3',
-        name: 'Drawer 3',
-        items: [],
-      },
-    ],
-  },
-  {
-    id: 'cabinet-3',
-    name: 'Cabinet C',
-    drawers: [
-      {
-        id: 'drawer-3-1',
-        name: 'Drawer 1',
-        items: [
-          { id: '8', name: 'Soldering Iron', category: 'Tool', quantity: 2, addedDate: '2024-01-09' },
-          { id: '9', name: 'Multimeter', category: 'Tool', quantity: 4, addedDate: '2024-01-07' },
-        ],
-      },
-      {
-        id: 'drawer-3-2',
-        name: 'Drawer 2',
-        items: [
-          { id: '10', name: 'Breadboard Set', category: 'Tool', quantity: 3, addedDate: '2024-01-16' },
-        ],
-      },
-      {
-        id: 'drawer-3-3',
-        name: 'Drawer 3',
-        items: [
-          { id: '11', name: 'Oscilloscope Probes', category: 'Tool', quantity: 2, addedDate: '2024-01-06' },
-        ],
-      },
-    ],
-  },
-];
 
 interface EditingItem {
   cabinetId: string;
@@ -139,67 +60,93 @@ interface EditingItem {
 }
 
 const AdminStorageManagementPage: React.FC = () => {
-  const [storageData, setStorageData] = useState<CabinetData[]>(initialStorageData);
+  const [storageData, setStorageData] = useState<CabinetData[]>([]);
+  const [originalStorageData, setOriginalStorageData] = useState<CabinetData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedCabinet, setSelectedCabinet] = useState<string>('');
   const [selectedDrawer, setSelectedDrawer] = useState<string>('');
   const [itemName, setItemName] = useState('');
-  const [itemCategory, setItemCategory] = useState('Microcontroller');
+  const [itemCategory, setItemCategory] = useState('microcontroller'); // Updated to match backend enum
   const [itemQuantity, setItemQuantity] = useState('1');
   const [editingItem, setEditingItem] = useState<EditingItem | null>(null);
   const [draggedItem, setDraggedItem] = useState<{ cabinetId: string; drawerId: string; itemId: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
 
-  const handleAddItem = () => {
-    if (selectedCabinet && selectedDrawer && itemName) {
-      setStorageData((prevData) =>
-        prevData.map((cabinet) =>
-          cabinet.id === selectedCabinet
-            ? {
-                ...cabinet,
-                drawers: cabinet.drawers.map((drawer) =>
-                  drawer.id === selectedDrawer
-                    ? {
-                        ...drawer,
-                        items: [
-                          ...drawer.items,
-                          {
-                            id: Date.now().toString(),
-                            name: itemName,
-                            category: itemCategory,
-                            quantity: parseInt(itemQuantity),
-                            addedDate: new Date().toISOString().split('T')[0],
-                          },
-                        ],
-                      }
-                    : drawer
-                ),
-              }
-            : cabinet
-        )
-      );
-      resetForm();
+  // Load storage data on component mount
+  useEffect(() => {
+    loadStorageData();
+  }, []);
+
+  // Show snackbar message
+  const showSnackbar = (message: string, severity: 'success' | 'error' | 'info' = 'info') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const loadStorageData = async () => {
+    try {
+      setLoading(true);
+      const cabinets = await storageService.getCabinetsWithDrawersAndItems();
+      setStorageData(cabinets);
+      setOriginalStorageData([...cabinets]);
+    } catch (error) {
+      console.error('Error loading storage data:', error);
+      showSnackbar('Failed to load storage data. Please refresh the page.', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteItem = (cabinetId: string, drawerId: string, itemId: string) => {
-    setStorageData((prevData) =>
-      prevData.map((cabinet) =>
-        cabinet.id === cabinetId
-          ? {
-              ...cabinet,
-              drawers: cabinet.drawers.map((drawer) =>
-                drawer.id === drawerId
-                  ? {
-                      ...drawer,
-                      items: drawer.items.filter((item) => item.id !== itemId),
-                    }
-                  : drawer
-              ),
-            }
-          : cabinet
-      )
-    );
+  // Check if an item has pending changes
+  const hasItemPendingChanges = (itemId: string): boolean => {
+    return pendingChanges.some(change => change.itemId === itemId);
+  };
+
+  // Get pending change for an item
+  const getItemPendingChange = (itemId: string): PendingChange | undefined => {
+    return pendingChanges.find(change => change.itemId === itemId);
+  };
+
+  // Handle add item with API call
+  const handleAddItem = async () => {
+    if (selectedCabinet && selectedDrawer && itemName) {
+      try {
+        const newItem = await storageService.createItem({
+          drawer_id: selectedDrawer,
+          name: itemName,
+          category: itemCategory,
+          quantity: parseInt(itemQuantity),
+          added_date: new Date().toISOString().split('T')[0],
+        });
+
+        // Reload data to get fresh state
+        await loadStorageData();
+        showSnackbar('Item added successfully!', 'success');
+        resetForm();
+      } catch (error) {
+        console.error('Error adding item:', error);
+        showSnackbar('Failed to add item. Please try again.', 'error');
+      }
+    }
+  };
+
+  // Handle delete item with API call
+  const handleDeleteItem = async (cabinetId: string, drawerId: string, itemId: string) => {
+    try {
+      await storageService.deleteItem(itemId);
+      await loadStorageData();
+      showSnackbar('Item deleted successfully!', 'success');
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      showSnackbar('Failed to delete item. Please try again.', 'error');
+    }
   };
 
   const handleEditItem = (cabinetId: string, drawerId: string, item: StorageItem) => {
@@ -217,35 +164,23 @@ const AdminStorageManagementPage: React.FC = () => {
     setEditDialogOpen(true);
   };
 
-  const handleSaveEdit = () => {
+  // Handle save edit with API call
+  const handleSaveEdit = async () => {
     if (editingItem && itemName) {
-      setStorageData((prevData) =>
-        prevData.map((cabinet) =>
-          cabinet.id === editingItem.cabinetId
-            ? {
-                ...cabinet,
-                drawers: cabinet.drawers.map((drawer) =>
-                  drawer.id === editingItem.drawerId
-                    ? {
-                        ...drawer,
-                        items: drawer.items.map((item) =>
-                          item.id === editingItem.itemId
-                            ? {
-                                ...item,
-                                name: itemName,
-                                category: itemCategory,
-                                quantity: parseInt(itemQuantity),
-                              }
-                            : item
-                        ),
-                      }
-                    : drawer
-                ),
-              }
-            : cabinet
-        )
-      );
-      resetEditForm();
+      try {
+        await storageService.updateItem(editingItem.itemId, {
+          name: itemName,
+          category: itemCategory,
+          quantity: parseInt(itemQuantity),
+        });
+
+        await loadStorageData();
+        showSnackbar('Item updated successfully!', 'success');
+        resetEditForm();
+      } catch (error) {
+        console.error('Error updating item:', error);
+        showSnackbar('Failed to update item. Please try again.', 'error');
+      }
     }
   };
 
@@ -277,7 +212,39 @@ const AdminStorageManagementPage: React.FC = () => {
       return;
     }
 
-    // Remove from source drawer and add to target drawer
+    // Check if item already has a pending change
+    const existingChangeIndex = pendingChanges.findIndex(change => change.itemId === draggedItem.itemId);
+
+    // Create or update pending change
+    const newPendingChange: PendingChange = {
+      itemId: draggedItem.itemId,
+      equipmentId: draggedItemData.equipmentId,
+      originalLocation: existingChangeIndex >= 0
+        ? pendingChanges[existingChangeIndex].originalLocation
+        : { cabinetId: draggedItem.cabinetId, drawerId: draggedItem.drawerId },
+      newLocation: { cabinetId: dropCabinetId, drawerId: dropDrawerId }
+    };
+
+    // Update pending changes
+    if (existingChangeIndex >= 0) {
+      // Update existing pending change
+      const updatedChanges = [...pendingChanges];
+
+      // If moving back to original location, remove the pending change
+      if (newPendingChange.originalLocation.cabinetId === dropCabinetId &&
+          newPendingChange.originalLocation.drawerId === dropDrawerId) {
+        updatedChanges.splice(existingChangeIndex, 1);
+      } else {
+        updatedChanges[existingChangeIndex] = newPendingChange;
+      }
+
+      setPendingChanges(updatedChanges);
+    } else {
+      // Add new pending change
+      setPendingChanges(prev => [...prev, newPendingChange]);
+    }
+
+    // Update visual state (move item in UI but don't persist yet)
     setStorageData((prevData) =>
       prevData.map((cabinet) => {
         let updatedCabinet = cabinet;
@@ -317,6 +284,65 @@ const AdminStorageManagementPage: React.FC = () => {
     );
 
     setDraggedItem(null);
+    showSnackbar(`Item moved to ${dropCabinetId} - ${dropDrawerId}. Click 'Save Changes' to persist.`, 'info');
+  };
+
+  // Save all pending changes to backend
+  const handleSaveChanges = async () => {
+    if (pendingChanges.length === 0) {
+      showSnackbar('No changes to save.', 'info');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Use the new storage service batch move functionality
+      const moves = pendingChanges.map(change => ({
+        itemId: change.itemId,
+        newDrawerId: change.newLocation.drawerId,
+      }));
+
+      const result = await storageService.batchMoveItems(moves);
+
+      if (result.success) {
+        showSnackbar(`Successfully moved ${result.count} item${result.count === 1 ? '' : 's'}!`, 'success');
+
+        // Clear pending changes and reload data to get fresh state
+        setPendingChanges([]);
+        await loadStorageData();
+      } else {
+        throw new Error('Batch move operation failed');
+      }
+    } catch (error) {
+      console.error('Error saving changes:', error);
+      showSnackbar('Error saving changes. Please try again.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Discard all pending changes
+  const handleDiscardChanges = async () => {
+    try {
+      await loadStorageData(); // Reload fresh data from API
+      setPendingChanges([]);
+      showSnackbar('All changes discarded.', 'info');
+    } catch (error) {
+      console.error('Error reloading data:', error);
+      showSnackbar('Error reloading data. Please refresh the page.', 'error');
+    }
+  };
+
+  // Helper functions to get names from IDs
+  const getCabinetNameFromId = (cabinetId: string): string => {
+    const cabinet = storageData.find(c => c.id === cabinetId);
+    return cabinet?.name || cabinetId;
+  };
+
+  const getDrawerNameFromId = (cabinetId: string, drawerId: string): string => {
+    const cabinet = storageData.find(c => c.id === cabinetId);
+    const drawer = cabinet?.drawers.find(d => d.id === drawerId);
+    return drawer?.name || drawerId;
   };
 
   const resetForm = () => {
@@ -324,7 +350,7 @@ const AdminStorageManagementPage: React.FC = () => {
     setSelectedCabinet('');
     setSelectedDrawer('');
     setItemName('');
-    setItemCategory('Microcontroller');
+    setItemCategory('microcontroller'); // Updated to match backend enum
     setItemQuantity('1');
   };
 
@@ -332,7 +358,7 @@ const AdminStorageManagementPage: React.FC = () => {
     setEditDialogOpen(false);
     setEditingItem(null);
     setItemName('');
-    setItemCategory('Microcontroller');
+    setItemCategory('microcontroller'); // Updated to match backend enum
     setItemQuantity('1');
   };
 
@@ -344,10 +370,15 @@ const AdminStorageManagementPage: React.FC = () => {
   const getCategoryColor = (category: string) => {
     const colors: { [key: string]: string } = {
       Microcontroller: '#1a73e8',
+      microcontroller: '#1a73e8',
       Component: '#7c3aed',
+      component: '#7c3aed',
       Tool: '#f59e0b',
+      tool: '#f59e0b',
       Sensor: '#10b981',
+      sensor: '#10b981',
       'Other': '#6b7280',
+      'other': '#6b7280',
     };
     return colors[category] || '#6b7280';
   };
@@ -362,20 +393,101 @@ const AdminStorageManagementPage: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+          <CircularProgress size={60} />
+          <Typography variant="h6" sx={{ ml: 2 }}>
+            Loading storage data...
+          </Typography>
+        </Box>
+      ) : (
+        <>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <StorageIcon sx={{ fontSize: 32, color: '#1a73e8' }} />
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Storage Management
           </Typography>
+          {pendingChanges.length > 0 && (
+            <Badge badgeContent={pendingChanges.length} color="warning">
+              <Chip
+                label={`${pendingChanges.length} unsaved change${pendingChanges.length === 1 ? '' : 's'}`}
+                color="warning"
+                size="small"
+              />
+            </Badge>
+          )}
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setAddDialogOpen(true)}
-        >
-          Add Item
-        </Button>
+
+        <Box sx={{ display: 'flex', gap: 1.5 }}>
+          {pendingChanges.length > 0 && (
+            <>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<UndoIcon sx={{ fontSize: 16 }} />}
+                onClick={handleDiscardChanges}
+                disabled={saving}
+                sx={{
+                  fontSize: '0.875rem',
+                  px: 2,
+                  py: 0.5,
+                  minHeight: 32,
+                  textTransform: 'none',
+                  borderColor: '#d1d5db',
+                  color: '#6b7280',
+                  '&:hover': {
+                    borderColor: '#9ca3af',
+                    backgroundColor: '#f9fafb'
+                  }
+                }}
+              >
+                Discard
+              </Button>
+              <Button
+                variant="contained"
+                size="small"
+                color="success"
+                startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon sx={{ fontSize: 16 }} />}
+                onClick={handleSaveChanges}
+                disabled={saving || pendingChanges.length === 0}
+                sx={{
+                  fontSize: '0.875rem',
+                  px: 2,
+                  py: 0.5,
+                  minHeight: 32,
+                  textTransform: 'none',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: '#059669'
+                  }
+                }}
+              >
+                {saving ? 'Saving...' : `Save (${pendingChanges.length})`}
+              </Button>
+            </>
+          )}
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+            onClick={() => setAddDialogOpen(true)}
+            sx={{
+              fontSize: '0.875rem',
+              px: 2,
+              py: 0.5,
+              minHeight: 32,
+              textTransform: 'none',
+              backgroundColor: '#1a73e8',
+              '&:hover': {
+                backgroundColor: '#1557b0'
+              }
+            }}
+          >
+            Add Item
+          </Button>
+        </Box>
       </Box>
 
       {/* Storage Stats */}
@@ -440,7 +552,8 @@ const AdminStorageManagementPage: React.FC = () => {
                               onDragOver={handleDragOver}
                               sx={{
                                 p: 1.5,
-                                backgroundColor: draggedItem?.itemId === item.id ? '#e3f2fd' : '#f3f4f6',
+                                backgroundColor: draggedItem?.itemId === item.id ? '#e3f2fd' :
+                                  hasItemPendingChanges(item.id) ? '#fff3e0' : '#f3f4f6',
                                 borderRadius: 1,
                                 display: 'flex',
                                 justifyContent: 'space-between',
@@ -451,14 +564,49 @@ const AdminStorageManagementPage: React.FC = () => {
                                 },
                                 opacity: draggedItem?.itemId === item.id ? 0.6 : 1,
                                 transition: 'all 0.2s ease',
-                                border: draggedItem?.itemId === item.id ? '2px dashed #1a73e8' : 'none',
+                                border: hasItemPendingChanges(item.id)
+                                  ? '2px solid #f59e0b'
+                                  : draggedItem?.itemId === item.id
+                                    ? '2px dashed #1a73e8'
+                                    : 'none',
+                                position: 'relative',
                               }}
                             >
+                              {hasItemPendingChanges(item.id) && (
+                                <Box
+                                  sx={{
+                                    position: 'absolute',
+                                    top: -8,
+                                    right: -8,
+                                    backgroundColor: '#f59e0b',
+                                    color: 'white',
+                                    borderRadius: '50%',
+                                    width: 20,
+                                    height: 20,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 12,
+                                    fontWeight: 'bold'
+                                  }}
+                                >
+                                  !
+                                </Box>
+                              )}
+
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
                                 <DragIndicatorIcon sx={{ fontSize: 18, color: '#9ca3af', cursor: 'grab' }} />
                                 <Box sx={{ flex: 1 }}>
                                   <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
                                     {item.name}
+                                    {hasItemPendingChanges(item.id) && (
+                                      <Chip
+                                        label="Moved"
+                                        size="small"
+                                        color="warning"
+                                        sx={{ ml: 1, height: 16, fontSize: 10 }}
+                                      />
+                                    )}
                                   </Typography>
                                   <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                                     <Chip
@@ -559,11 +707,11 @@ const AdminStorageManagementPage: React.FC = () => {
                 onChange={(e) => setItemCategory(e.target.value)}
                 label="Category"
               >
-                <MenuItem value="Microcontroller">Microcontroller</MenuItem>
-                <MenuItem value="Component">Component</MenuItem>
-                <MenuItem value="Tool">Tool</MenuItem>
-                <MenuItem value="Sensor">Sensor</MenuItem>
-                <MenuItem value="Other">Other</MenuItem>
+                <MenuItem value="microcontroller">Microcontroller</MenuItem>
+                <MenuItem value="component">Component</MenuItem>
+                <MenuItem value="tool">Tool</MenuItem>
+                <MenuItem value="sensor">Sensor</MenuItem>
+                <MenuItem value="other">Other</MenuItem>
               </Select>
             </FormControl>
 
@@ -604,11 +752,11 @@ const AdminStorageManagementPage: React.FC = () => {
                 onChange={(e) => setItemCategory(e.target.value)}
                 label="Category"
               >
-                <MenuItem value="Microcontroller">Microcontroller</MenuItem>
-                <MenuItem value="Component">Component</MenuItem>
-                <MenuItem value="Tool">Tool</MenuItem>
-                <MenuItem value="Sensor">Sensor</MenuItem>
-                <MenuItem value="Other">Other</MenuItem>
+                <MenuItem value="microcontroller">Microcontroller</MenuItem>
+                <MenuItem value="component">Component</MenuItem>
+                <MenuItem value="tool">Tool</MenuItem>
+                <MenuItem value="sensor">Sensor</MenuItem>
+                <MenuItem value="other">Other</MenuItem>
               </Select>
             </FormControl>
 
@@ -629,6 +777,22 @@ const AdminStorageManagementPage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+      >
+        <Alert
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+          severity={snackbar.severity}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+      </>
+      )}
     </Box>
   );
 };

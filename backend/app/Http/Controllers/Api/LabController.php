@@ -22,18 +22,22 @@ class LabController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string',
-            'capacity' => 'required|integer',
+        $validatedData = $request->validate([
+            'name' => 'required|string|max:255',
+            'capacity' => 'required|integer|min:1|max:1000',
+            'equipment' => 'sometimes|array',
+            'equipment.*' => 'string',
+            'floor' => 'sometimes|integer|min:1|max:50',
+            'isActive' => 'sometimes|boolean', // Accept isActive from frontend
         ]);
 
         $lab = Lab::create([
             'id' => 'lab-' . time(),
-            'name' => $request->name,
-            'capacity' => $request->capacity,
-            'equipment' => $request->equipment ?? [],
-            'floor' => $request->floor ?? 1,
-            'is_active' => $request->is_active ?? true,
+            'name' => $validatedData['name'],
+            'capacity' => $validatedData['capacity'],
+            'equipment' => $validatedData['equipment'] ?? [],
+            'floor' => $validatedData['floor'] ?? 1,
+            'is_active' => $validatedData['isActive'] ?? true, // Map isActive to is_active
         ]);
 
         return response()->json($this->formatLab($lab), 201);
@@ -41,9 +45,61 @@ class LabController extends Controller
 
     public function update(Request $request, $id)
     {
-        $lab = Lab::findOrFail($id);
-        $lab->update($request->only(['name', 'capacity', 'equipment', 'floor', 'is_active']));
-        return response()->json($this->formatLab($lab));
+        try {
+            // Find the lab
+            $lab = Lab::findOrFail($id);
+
+            // Validate the request
+            $validatedData = $request->validate([
+                'name' => 'sometimes|string|max:255',
+                'capacity' => 'sometimes|integer|min:1|max:1000',
+                'equipment' => 'sometimes|array',
+                'equipment.*' => 'string',
+                'floor' => 'sometimes|integer|min:1|max:50',
+                'isActive' => 'sometimes|boolean', // Accept isActive from frontend
+            ]);
+
+            // Map frontend field names to database field names
+            $updateData = [];
+            foreach ($validatedData as $key => $value) {
+                if ($key === 'isActive') {
+                    // Convert isActive (frontend) to is_active (database)
+                    $updateData['is_active'] = $value;
+                } else {
+                    $updateData[$key] = $value;
+                }
+            }
+
+            // Update the lab
+            $lab->update($updateData);
+
+            return response()->json([
+                'success' => true,
+                'data' => $this->formatLab($lab->fresh()),
+                'message' => 'Lab updated successfully'
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lab not found',
+                'error' => 'LAB_NOT_FOUND'
+            ], 404);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating the lab',
+                'error' => 'INTERNAL_ERROR'
+            ], 500);
+        }
     }
 
     public function destroy($id)
