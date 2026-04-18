@@ -2,23 +2,31 @@ import { MaintenanceRequest, User } from '../../types';
 import apiClient from './client';
 
 export const maintenanceService = {
-  async getRequests(): Promise<MaintenanceRequest[]> {
-    return apiClient.get<MaintenanceRequest[]>('/maintenance-requests');
-  },
-
-  async getRequestById(id: string): Promise<MaintenanceRequest> {
-    return apiClient.get<MaintenanceRequest>(`/maintenance-requests/${id}`);
+  async getRequests(filters?: { status?: string; priority?: string; technician_id?: string }): Promise<MaintenanceRequest[]> {
+    let url = '/maintenance-requests';
+    if (filters) {
+      const params = new URLSearchParams();
+      if (filters.status) params.append('status', filters.status);
+      if (filters.priority) params.append('priority', filters.priority);
+      if (filters.technician_id) params.append('technician_id', filters.technician_id);
+      
+      const queryString = params.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+    }
+    return apiClient.get<MaintenanceRequest[]>(url);
   },
 
   async getRequestsByStatus(status: MaintenanceRequest['status']): Promise<MaintenanceRequest[]> {
-    const requests = await this.getRequests();
-    return requests.filter(r => r.status === status);
+    return this.getRequests({ status });
   },
 
   async getRequestsByPriority(priority: MaintenanceRequest['priority']): Promise<MaintenanceRequest[]> {
-    const requests = await this.getRequests();
-    return requests.filter(r => r.priority === priority);
+    return this.getRequests({ priority });
   },
+
+  async getRequestById(id: string): Promise<MaintenanceRequest> { const response = await apiClient.get<MaintenanceRequest>(`/work-orders/${id}`); return response; },
 
   async createRequest(requestData: {
     equipmentId: string;

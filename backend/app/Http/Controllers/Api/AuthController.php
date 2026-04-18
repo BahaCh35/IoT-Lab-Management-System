@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,6 +34,17 @@ class AuthController extends Controller
         }
 
         $token = $user->createToken('auth-token')->plainTextToken;
+
+        ActivityLog::create([
+            'user_id' => $user->id,
+            'action' => 'login',
+            'entity_type' => 'LOGIN',
+            'entity_id' => (string) $user->id,
+            'details' => [
+                'email' => $user->email,
+                'ip' => $request->ip(),
+            ],
+        ]);
 
         return response()->json([
             'user' => $this->formatUser($user),

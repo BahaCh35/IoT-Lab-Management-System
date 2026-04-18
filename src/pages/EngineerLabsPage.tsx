@@ -31,57 +31,7 @@ import WarningIcon from '@mui/icons-material/Warning';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import { labService } from '../services/labService';
 import { approvalService } from '../services/approvalService';
-
-const mockLabs = [
-  {
-    id: 'lab-001',
-    name: 'IoT Lab',
-    type: 'Internet of Things',
-    capacity: 15,
-    floor: 2,
-    location: 'Building A',
-    equipment: ['Arduino Board', 'Raspberry Pi', 'Sensors', 'Wireless Modules'],
-    availability: 'Available',
-    safetyRequirements: 'No special requirements',
-    operatingHours: '8:00 AM - 6:00 PM',
-  },
-  {
-    id: 'lab-002',
-    name: 'Electronics Lab',
-    type: 'Electronics & Circuits',
-    capacity: 20,
-    floor: 3,
-    location: 'Building A',
-    equipment: ['Oscilloscope', 'Power Supply', 'Function Generator', 'Multimeter'],
-    availability: 'Booked',
-    safetyRequirements: 'Electrical Safety Training Required',
-    operatingHours: '7:00 AM - 7:00 PM',
-  },
-  {
-    id: 'lab-003',
-    name: 'Robotics Lab',
-    type: 'Robotics & Automation',
-    capacity: 12,
-    floor: 4,
-    location: 'Building B',
-    equipment: ['Robot Arms', 'Motion Controllers', 'Vision Systems', 'PLC Units'],
-    availability: 'Available',
-    safetyRequirements: 'Safety Training & PPE Required',
-    operatingHours: '8:00 AM - 5:00 PM',
-  },
-  {
-    id: 'lab-004',
-    name: 'Materials Lab',
-    type: 'Materials Science',
-    capacity: 8,
-    floor: 1,
-    location: 'Building B',
-    equipment: ['Microscopes', 'Testing Equipment', 'Analysis Tools', 'Sample Storage'],
-    availability: 'Available',
-    safetyRequirements: 'Chemical Handling Training Required',
-    operatingHours: '9:00 AM - 5:00 PM',
-  },
-];
+import { Lab } from '../types';
 
 const TIME_SLOTS = [
   '7:00 AM', '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM',
@@ -125,25 +75,20 @@ const emptyForm = (): BookingForm => ({
 
 const EngineerLabsPage: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedLab, setSelectedLab] = useState<(typeof mockLabs)[0] | null>(null);
+  const [selectedLab, setSelectedLab] = useState<Lab | null>(null);
   const [form, setForm] = useState<BookingForm>(emptyForm());
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [successMsg, setSuccessMsg] = useState('');
-  const [visibleLabs, setVisibleLabs] = useState<(typeof mockLabs)>([]);
+  const [visibleLabs, setVisibleLabs] = useState<Lab[]>([]);
 
   useEffect(() => {
     const loadVisibleLabs = async () => {
       try {
         const allLabs = await labService.getLabs();
-        const activeLabNames = new Set(allLabs.filter((l) => l.isActive).map((l) => l.name));
-        const visible = mockLabs.filter((m) => {
-          const inAdmin = allLabs.some((a) => a.name === m.name);
-          return !inAdmin || activeLabNames.has(m.name);
-        });
-        setVisibleLabs(visible);
+        setVisibleLabs(allLabs.filter((l) => l.isActive));
       } catch (error) {
         console.error('Error loading labs:', error);
-        setVisibleLabs(mockLabs); // Fallback to showing all mock labs
+        setVisibleLabs([]); // Fallback on error
       }
     };
     loadVisibleLabs();
@@ -152,7 +97,7 @@ const EngineerLabsPage: React.FC = () => {
   const getAvailabilityColor = (availability: string) =>
     availability === 'Available' ? '#10b981' : '#f59e0b';
 
-  const openReserve = (lab: (typeof mockLabs)[0]) => {
+  const openReserve = (lab: Lab) => {
     setSelectedLab(lab);
     setForm(emptyForm());
     setFormErrors({});
@@ -171,9 +116,19 @@ const EngineerLabsPage: React.FC = () => {
 
   const handleSubmit = () => {
     if (!validate()) return;
+    
+    const userStr = localStorage.getItem('user');
+    const currentUser = userStr ? JSON.parse(userStr) : {
+      id: 'current-engineer',
+      name: 'My Profile',
+      email: 'engineer@novation.com',
+      role: 'engineer',
+      createdAt: new Date().toISOString()
+    };
+
     approvalService.createApproval({
       type: 'lab-reservation',
-      requester: { id: 'current-engineer', name: 'My Profile', email: 'engineer@novation.com', role: 'engineer', createdAt: new Date().toISOString() },
+      requester: currentUser,
       description: `Lab reservation: ${selectedLab?.name} on ${form.date} at ${form.startTime} for ${form.duration}`,
       details: { labName: selectedLab?.name, date: form.date, startTime: form.startTime, duration: form.duration, purpose: form.purpose, participants: form.participants },
       priority: 'medium',
@@ -220,7 +175,7 @@ const EngineerLabsPage: React.FC = () => {
                       {lab.name}
                     </Typography>
                     <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                      {lab.type}
+                      {"General Lab"}
                     </Typography>
                   </Box>
                   <Chip icon={<PeopleIcon />} label={lab.capacity} size="small" variant="outlined" />
@@ -228,11 +183,11 @@ const EngineerLabsPage: React.FC = () => {
 
                 <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
                   <Chip
-                    label={lab.availability}
+                    label={(lab.isActive !== false) ? "Available" : "Maintenance"}
                     size="small"
                     sx={{
-                      backgroundColor: getAvailabilityColor(lab.availability) + '20',
-                      color: getAvailabilityColor(lab.availability),
+                      backgroundColor: getAvailabilityColor(lab.isActive !== false ? "Available" : "Maintenance") + '20',
+                      color: getAvailabilityColor(lab.isActive !== false ? "Available" : "Maintenance"),
                       fontWeight: 500,
                     }}
                   />
@@ -243,10 +198,10 @@ const EngineerLabsPage: React.FC = () => {
                     Location & Hours
                   </Typography>
                   <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
-                    {lab.location} — Floor {lab.floor}
+                    {"Campus Building"} — Floor {lab.floor}
                   </Typography>
                   <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
-                    {lab.operatingHours}
+                    {"08:00 AM - 05:00 PM"}
                   </Typography>
                 </Box>
 
@@ -263,13 +218,13 @@ const EngineerLabsPage: React.FC = () => {
               <CardActions sx={{ px: 2, pb: 2 }}>
                 <Button
                   fullWidth
-                  variant={lab.availability === 'Available' ? 'contained' : 'outlined'}
+                  variant={lab.isActive !== false ? 'contained' : 'outlined'}
                   startIcon={<EventAvailableIcon />}
                   onClick={() => openReserve(lab)}
                   sx={{
                     textTransform: 'none',
-                    backgroundColor: lab.availability === 'Available' ? '#1a73e8' : undefined,
-                    '&:hover': lab.availability === 'Available' ? { backgroundColor: '#1557b0' } : {},
+                    backgroundColor: lab.isActive !== false ? '#1a73e8' : undefined,
+                    '&:hover': lab.isActive !== false ? { backgroundColor: '#1557b0' } : {},
                   }}
                 >
                   Reserve Lab
@@ -310,7 +265,7 @@ const EngineerLabsPage: React.FC = () => {
                           {lab.name}
                         </Typography>
                         <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                          {lab.type}
+                          {"General Lab"}
                         </Typography>
                       </Box>
                     </TableCell>
@@ -322,22 +277,22 @@ const EngineerLabsPage: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Chip
-                        label={lab.availability}
+                        label={(lab.isActive !== false) ? "Available" : "Maintenance"}
                         size="small"
                         sx={{
-                          backgroundColor: getAvailabilityColor(lab.availability) + '20',
-                          color: getAvailabilityColor(lab.availability),
+                          backgroundColor: getAvailabilityColor(lab.isActive !== false ? "Available" : "Maintenance") + '20',
+                          color: getAvailabilityColor(lab.isActive !== false ? "Available" : "Maintenance"),
                         }}
                       />
                     </TableCell>
                     <TableCell>
                       <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                        {lab.safetyRequirements}
+                        {"Standard Lab Safety Protocol Applies"}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                        {lab.operatingHours}
+                        {"08:00 AM - 05:00 PM"}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
@@ -381,10 +336,10 @@ const EngineerLabsPage: React.FC = () => {
             </Box>
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 0.5 }}>
-              {selectedLab && !selectedLab.safetyRequirements.includes('No special') && (
+              {selectedLab && false && (
                 <Alert severity="warning" sx={{ py: 0.5 }}>
                   <Typography variant="caption">
-                    {selectedLab.safetyRequirements}
+                    {"Standard Lab Safety Protocol Applies"}
                   </Typography>
                 </Alert>
               )}

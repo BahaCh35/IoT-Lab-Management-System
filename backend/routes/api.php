@@ -173,6 +173,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Activity Log
     Route::get('/activity-log', [ActivityLogController::class, 'index']);
+    Route::post('/activity-log', [ActivityLogController::class, 'store']);
 
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index']);

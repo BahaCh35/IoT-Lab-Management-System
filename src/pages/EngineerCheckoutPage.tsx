@@ -50,8 +50,9 @@ const EngineerCheckoutPage: React.FC = () => {
   });
   const [overdueCheckouts, setOverdueCheckouts] = useState<Checkout[]>([]);
 
-  // Mock current user
-  const currentUser = {
+  // Get current user from localStorage
+  const userStr = localStorage.getItem('user');
+  const currentUser = userStr ? JSON.parse(userStr) : {
     id: '101',
     name: 'Ahmed',
     email: 'engineer@novation.com',

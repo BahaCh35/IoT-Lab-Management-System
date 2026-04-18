@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -28,78 +28,13 @@ import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import PeopleIcon from '@mui/icons-material/People';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import { approvalService } from '../services/approvalService';
+import { meetingRoomService } from '../services/meetingRoomService';
+import { MeetingRoom } from '../types';
 
 interface RoomBooking {
   start: string;
   end: string;
 }
-
-interface MeetingRoom {
-  id: string;
-  name: string;
-  capacity: number;
-  floor: number;
-  location: string;
-  amenities: string[];
-  bookedToday: RoomBooking[];
-}
-
-const mockMeetingRooms: MeetingRoom[] = [
-  {
-    id: 'mr-001',
-    name: 'Conference A',
-    capacity: 12,
-    floor: 2,
-    location: 'Building A',
-    amenities: ['Projector', 'Whiteboard', 'Conference Phone'],
-    bookedToday: [],
-  },
-  {
-    id: 'mr-002',
-    name: 'Conference B',
-    capacity: 8,
-    floor: 2,
-    location: 'Building A',
-    amenities: ['TV Monitor', 'Whiteboard'],
-    bookedToday: [{ start: '2:00 PM', end: '3:30 PM' }],
-  },
-  {
-    id: 'mr-003',
-    name: 'Small Meeting Room',
-    capacity: 4,
-    floor: 1,
-    location: 'Building A',
-    amenities: ['Whiteboard', 'AC'],
-    bookedToday: [],
-  },
-  {
-    id: 'mr-004',
-    name: 'Collaboration Space',
-    capacity: 20,
-    floor: 3,
-    location: 'Building B',
-    amenities: ['Multiple Monitors', 'Projector', 'Whiteboard', 'Dial-in Phone'],
-    bookedToday: [],
-  },
-  {
-    id: 'mr-005',
-    name: 'Training Room',
-    capacity: 30,
-    floor: 1,
-    location: 'Building B',
-    amenities: ['Projector', 'Whiteboard', 'Tiered Seating'],
-    bookedToday: [{ start: '1:00 PM', end: '4:00 PM' }],
-  },
-  {
-    id: 'mr-006',
-    name: 'Executive Boardroom',
-    capacity: 16,
-    floor: 4,
-    location: 'Building A',
-    amenities: ['Projector', 'Video Conference', 'Leather Seating'],
-    bookedToday: [],
-  },
-];
 
 const TIME_SLOTS = [
   '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM',
@@ -179,8 +114,21 @@ const EngineerMeetingRoomsPage: React.FC = () => {
   const [form, setForm] = useState<BookingForm>(emptyForm());
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [successMsg, setSuccessMsg] = useState('');
+  const [rooms, setRooms] = useState<MeetingRoom[]>([]);
 
-  const getAvailabilityColor = (bookedToday: RoomBooking[]) =>
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const data = await meetingRoomService.getMeetingRooms();
+        setRooms(data);
+      } catch (error) {
+        console.error('Error fetching rooms:', error);
+      }
+    };
+    fetchRooms();
+  }, []);
+
+  const getAvailabilityColor = (bookedToday: any[]) =>
     bookedToday.length === 0 ? '#10b981' : '#f59e0b';
 
   const getAmenityIcon = (amenity: string) => {
@@ -218,9 +166,19 @@ const EngineerMeetingRoomsPage: React.FC = () => {
 
   const handleSubmit = () => {
     if (!validate()) return;
+
+    const userStr = localStorage.getItem('user');
+    const currentUser = userStr ? JSON.parse(userStr) : {
+      id: 'current-engineer',
+      name: 'My Profile',
+      email: 'engineer@novation.com',
+      role: 'engineer',
+      createdAt: new Date().toISOString()
+    };
+
     approvalService.createApproval({
       type: 'meeting-room-booking',
-      requester: { id: 'current-engineer', name: 'My Profile', email: 'engineer@novation.com', role: 'engineer', createdAt: new Date().toISOString() },
+      requester: currentUser,
       description: `Meeting room booking: ${selectedRoom?.name} on ${form.date} at ${form.startTime} for ${form.duration}`,
       details: { roomName: selectedRoom?.name, date: form.date, startTime: form.startTime, duration: form.duration, purpose: form.purpose, attendees: form.attendees },
       priority: 'medium',
@@ -229,7 +187,7 @@ const EngineerMeetingRoomsPage: React.FC = () => {
     setForm(emptyForm());
   };
 
-  const availableSlots = getAvailableSlots(form.date, selectedRoom?.bookedToday ?? []);
+  const availableSlots = getAvailableSlots(form.date, []/* bookedToday */ ?? []);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -250,10 +208,10 @@ const EngineerMeetingRoomsPage: React.FC = () => {
           mb: 4,
         }}
       >
-        {mockMeetingRooms.map((room) => {
-          const availLabel = formatAvailabilityLabel(room.bookedToday);
-          const availColor = getAvailabilityColor(room.bookedToday);
-          const isAvailable = room.bookedToday.length === 0;
+        {rooms.map((room) => {
+          const availLabel = formatAvailabilityLabel([]/* bookedToday */ || []);
+          const availColor = getAvailabilityColor([]/* bookedToday */ || []);
+          const isAvailable = !([]/* bookedToday */ && []/* bookedToday */.length > 0);
           return (
             <Card
               key={room.id}
@@ -331,7 +289,7 @@ const EngineerMeetingRoomsPage: React.FC = () => {
       <Card>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            All Meeting Rooms ({mockMeetingRooms.length})
+            All Meeting Rooms ({rooms.length})
           </Typography>
           <TableContainer component={Paper} sx={{ backgroundColor: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 2 }}>
             <Table>
@@ -346,9 +304,9 @@ const EngineerMeetingRoomsPage: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {mockMeetingRooms.map((room) => {
-                  const availLabel = formatAvailabilityLabel(room.bookedToday);
-                  const availColor = getAvailabilityColor(room.bookedToday);
+                {rooms.map((room) => {
+                  const availLabel = formatAvailabilityLabel([]/* bookedToday */ || []);
+                  const availColor = getAvailabilityColor([]/* bookedToday */ || []);
                   return (
                     <TableRow key={room.id} sx={{ '&:hover': { backgroundColor: '#f9fafb' } }}>
                       <TableCell>

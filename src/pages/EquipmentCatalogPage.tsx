@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -18,9 +18,11 @@ import {
   DialogActions,
   Snackbar,
   Alert,
+  CircularProgress,
 } from '@mui/material';
 import { checkoutStore } from '../services/checkoutStore';
 import { approvalService } from '../services/approvalService';
+import { equipmentService } from '../services/equipmentService';
 import SearchIcon from '@mui/icons-material/Search';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -29,84 +31,6 @@ import HistoryIcon from '@mui/icons-material/History';
 import InventoryIcon from '@mui/icons-material/Inventory2';
 import WarningIcon from '@mui/icons-material/Warning';
 import BuildIcon from '@mui/icons-material/Build';
-
-// Mock equipment data
-const mockEquipment: EquipmentItem[] = [
-  {
-    id: '1',
-    name: 'Arduino Uno',
-    category: 'microcontroller',
-    status: 'available',
-    location: 'Room 102, Cabinet A, Drawer 3',
-    specifications: { Processor: 'ATmega328P', RAM: '2 KB', Flash: '32 KB' },
-    totalUnits: 5,
-    availableUnits: 3,
-    lastUsedBy: 'My Profile',
-    lastUsedDate: '2024-02-14',
-    rating: 4.5,
-  },
-  {
-    id: '2',
-    name: 'Raspberry Pi 4',
-    category: 'microcontroller',
-    status: 'checked-out',
-    location: 'Room 102, Cabinet B, Drawer 1',
-    specifications: { CPU: 'Quad-core 1.8GHz', RAM: '8 GB', Storage: '64 GB' },
-    totalUnits: 3,
-    availableUnits: 1,
-    lastUsedBy: 'Sarah Tech',
-    lastUsedDate: '2024-02-15',
-    rating: 4.8,
-  },
-  {
-    id: '3',
-    name: 'Oscilloscope',
-    category: 'tool',
-    status: 'available',
-    location: 'Lab Bench 3',
-    specifications: { Bandwidth: '100 MHz', Samples: '1 GSa/s', Channels: '2' },
-    totalUnits: 2,
-    availableUnits: 2,
-    lastUsedBy: 'Mike Dev',
-    lastUsedDate: '2024-02-13',
-    rating: 4.7,
-  },
-  {
-    id: '4',
-    name: 'Digital Multimeter',
-    category: 'tool',
-    status: 'available',
-    location: 'Tool Cabinet A, Drawer 2',
-    specifications: { Display: '3.5 Digit', Impedance: '10 MΩ', Modes: '16' },
-    totalUnits: 8,
-    availableUnits: 6,
-    lastUsedBy: 'Emma Lab',
-    lastUsedDate: '2024-02-15',
-    rating: 4.4,
-  },
-  {
-    id: '5',
-    name: 'Resistor Pack',
-    category: 'component',
-    status: 'available',
-    location: 'Storage Room, Shelf C',
-    specifications: { Values: '1Ω-1MΩ', Tolerance: '±5%', Quantity: '600 pieces' },
-    totalUnits: 50,
-    availableUnits: 45,
-    rating: 4.2,
-  },
-  {
-    id: '6',
-    name: 'Soldering Iron Set',
-    category: 'tool',
-    status: 'maintenance',
-    location: 'Repair Workshop',
-    specifications: { Power: '40W', Tip: 'Ceramic', Temperature: '200-450°C' },
-    totalUnits: 1,
-    availableUnits: 0,
-    rating: 3.9,
-  },
-];
 
 const CATEGORIES = ['All', 'microcontroller', 'tool', 'component', 'sensor', 'computer'];
 
@@ -385,6 +309,10 @@ const EquipmentDetailsDialog: React.FC<EquipmentDetailsDialogProps> = ({
 };
 
 const EquipmentCatalogPage: React.FC = () => {
+  const [equipmentList, setEquipmentList] = useState<EquipmentItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
@@ -396,20 +324,59 @@ const EquipmentCatalogPage: React.FC = () => {
   const [snackOpen, setSnackOpen] = useState(false);
   const [snackMsg, setSnackMsg] = useState('');
 
-  // Initialise per-card state from store so returning to this page shows correct buttons
-  const [itemStates, setItemStates] = useState<Record<string, ItemActionState>>(() => {
-    const stored = checkoutStore.getItems();
-    const initial: Record<string, ItemActionState> = {};
-    mockEquipment.forEach((e) => {
-      if (stored.some((s) => s.equipmentId === e.id)) initial[e.id] = 'checked-out';
-    });
-    return initial;
-  });
+  const fetchEquipment = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await equipmentService.getEquipment();
+      const mappedData: EquipmentItem[] = data.map((item) => {
+        const loc = item.location;
+        const locationString = loc
+            ? `${loc.building}, Room ${loc.room}${loc.cabinet ? `, Cabinet ${loc.cabinet}` : ''}${loc.drawer ? `, Drawer ${loc.drawer}` : ''}`
+            : 'Unknown';
+
+        return {
+          id: String(item.id),
+          name: item.name,
+          category: item.category,
+          status: item.status,
+          location: locationString,
+          specifications: item.specifications || {},
+          totalUnits: 1, // Fallback defaults until backend supports multi-unit
+          availableUnits: item.status === 'available' ? 1 : 0,
+          lastUsedBy: item.lastUsedBy,
+          lastUsedDate: item.lastUsedDate,
+          rating: 5, // Fallback default
+        };
+      });
+      setEquipmentList(mappedData);
+
+      // Initialise per-card state from store so returning to this page shows correct buttons
+      const stored = checkoutStore.getItems();
+      const initialStates: Record<string, ItemActionState> = {};
+      mappedData.forEach((e) => {
+        if (stored.some((s) => s.equipmentId === e.id)) initialStates[e.id] = 'checked-out';
+      });
+      setItemStates(initialStates);
+
+    } catch (err: any) {
+      console.error('Failed to fetch equipment:', err);
+      setError('Failed to load equipment catalog. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEquipment();
+  }, []);
+
+  const [itemStates, setItemStates] = useState<Record<string, ItemActionState>>({});
 
   const setItemState = (id: string, state: ItemActionState) =>
     setItemStates((prev) => ({ ...prev, [id]: state }));
 
-  const filteredEquipment = mockEquipment.filter((item) => {
+  const filteredEquipment = equipmentList.filter((item) => {
     const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.category.includes(searchQuery.toLowerCase());
@@ -433,27 +400,41 @@ const EquipmentCatalogPage: React.FC = () => {
     setReserveDialogOpen(true);
   };
 
-  const handleCheckoutConfirm = (qty: number, returnDate: string) => {
-    checkoutStore.addItem(actionTarget!.id, actionTarget!.name, qty, returnDate);
-    setItemState(actionTarget!.id, 'checked-out');
-    const label = new Date(returnDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    setSnackMsg(`Checked out ${qty}× ${actionTarget?.name} — return by ${label}`);
-    setSnackOpen(true);
-    setCheckoutDialogOpen(false);
+  const handleCheckoutConfirm = async (qty: number, returnDate: string) => {
+    if (!actionTarget) return;
+    try {
+      // API Checkout interaction (assuming structure for demonstration if valid endpoint, using mock checkoutStore otherwise for consistency)
+      // await checkoutService.checkoutEquipment(...)
+      checkoutStore.addItem(actionTarget.id, actionTarget.name, qty, returnDate);
+      setItemState(actionTarget.id, 'checked-out');
+      const label = new Date(returnDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      setSnackMsg(`Checked out ${qty}× ${actionTarget.name} — return by ${label}`);
+      setSnackOpen(true);
+      setCheckoutDialogOpen(false);
+    } catch (err) {
+      setSnackMsg('Failed to check out equipment.');
+      setSnackOpen(true);
+    }
   };
 
-  const handleReserveConfirm = (date: string, qty: number) => {
-    approvalService.createApproval({
-      type: 'equipment-reservation',
-      requester: { id: 'current-engineer', name: 'My Profile', email: 'engineer@novation.com', role: 'engineer', createdAt: new Date().toISOString() },
-      description: `Equipment reservation: ${qty}× ${actionTarget?.name} on ${date}`,
-      details: { equipmentName: actionTarget?.name, quantity: qty, reservationDate: date },
-      priority: 'medium',
-    });
-    setItemState(actionTarget!.id, 'reserved');
-    setSnackMsg(`Reservation submitted: ${qty}× ${actionTarget?.name} on ${date} — pending admin approval.`);
-    setSnackOpen(true);
-    setReserveDialogOpen(false);
+  const handleReserveConfirm = async (date: string, qty: number) => {
+    if (!actionTarget) return;
+    try {
+      await approvalService.createApproval({
+        type: 'equipment-reservation',
+        requester: { id: 'current-engineer', name: 'My Profile', email: 'engineer@novation.com', role: 'engineer', createdAt: new Date().toISOString() },
+        description: `Equipment reservation: ${qty}× ${actionTarget.name} on ${date}`,
+        details: { equipmentId: actionTarget.id, equipmentName: actionTarget.name, quantity: qty, reservationDate: date },
+        priority: 'medium',
+      });
+      setItemState(actionTarget.id, 'reserved');
+      setSnackMsg(`Reservation submitted: ${qty}× ${actionTarget.name} on ${date} — pending admin approval.`);
+      setSnackOpen(true);
+      setReserveDialogOpen(false);
+    } catch (err) {
+      setSnackMsg('Failed to reserve equipment.');
+      setSnackOpen(true);
+    }
   };
 
   const handleReturn = (id: string) => {
@@ -473,10 +454,10 @@ const EquipmentCatalogPage: React.FC = () => {
 
       {/* Stats */}
       {(() => {
-        const totalUnits = mockEquipment.reduce((s, e) => s + e.totalUnits, 0);
-        const availableUnits = mockEquipment.reduce((s, e) => s + e.availableUnits, 0);
-        const checkedOut = mockEquipment.filter((e) => e.status === 'checked-out').length;
-        const inMaintenance = mockEquipment.filter((e) => e.status === 'maintenance').length;
+        const totalUnits = equipmentList.reduce((s: number, e: EquipmentItem) => s + e.totalUnits, 0);
+        const availableUnits = equipmentList.reduce((s: number, e: EquipmentItem) => s + e.availableUnits, 0);
+        const checkedOut = equipmentList.filter((e: EquipmentItem) => e.status === 'checked-out').length;
+        const inMaintenance = equipmentList.filter((e: EquipmentItem) => e.status === 'maintenance').length;
         const stats = [
           { label: 'Total Equipment', value: totalUnits, icon: <InventoryIcon sx={{ fontSize: 26 }} />, bg: '#e8f0fe', color: '#1a73e8' },
           { label: 'Available Units', value: availableUnits, icon: <CheckCircleIcon sx={{ fontSize: 26 }} />, bg: '#e8f5e9', color: '#10b981' },
@@ -534,24 +515,35 @@ const EquipmentCatalogPage: React.FC = () => {
         </FormControl>
       </Box>
 
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
       {/* Equipment Grid */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3 }}>
-        {filteredEquipment.map((equipment) => {
-          const canAct = equipment.status === 'available' && equipment.availableUnits > 0;
-          const state = itemStates[equipment.id] || 'none';
-          return (
-            <Card
-              key={equipment.id}
-              sx={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 12px 24px rgba(0,0,0,0.12)' },
-              }}
-              onClick={() => handleEquipmentClick(equipment)}
-            >
+      {isLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3 }}>
+          {filteredEquipment.map((equipment: EquipmentItem) => {
+            const canAct = equipment.status === 'available' && equipment.availableUnits > 0;
+            const state = itemStates[equipment.id] || 'none';
+            return (
+              <Card
+                key={equipment.id}
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 12px 24px rgba(0,0,0,0.12)' },
+                }}
+                onClick={() => handleEquipmentClick(equipment)}
+              >
               <Box sx={{ height: 4, backgroundColor: STATUS_COLORS[equipment.status] }} />
 
               <CardContent sx={{ flex: 1 }}>
@@ -587,7 +579,7 @@ const EquipmentCatalogPage: React.FC = () => {
                       <Button
                         size="small"
                         variant="contained"
-                        onClick={() => openCheckout(equipment)}
+                        onClick={(e) => { e.stopPropagation(); openCheckout(equipment); }}
                         sx={{ ...actionBtnSx, backgroundColor: '#1a73e8', '&:hover': { backgroundColor: '#1557b0' } }}
                       >
                         Check Out
@@ -595,7 +587,7 @@ const EquipmentCatalogPage: React.FC = () => {
                       <Button
                         size="small"
                         variant="outlined"
-                        onClick={() => openReserve(equipment)}
+                        onClick={(e) => { e.stopPropagation(); openReserve(equipment); }}
                         sx={{ ...actionBtnSx, borderColor: '#7c3aed', color: '#7c3aed', '&:hover': { borderColor: '#6a1b9a', backgroundColor: '#f3e5f5' } }}
                       >
                         Reserve
@@ -607,7 +599,7 @@ const EquipmentCatalogPage: React.FC = () => {
                     <Button
                       size="small"
                       variant="contained"
-                      onClick={() => openCheckout(equipment)}
+                      onClick={(e) => { e.stopPropagation(); openCheckout(equipment); }}
                       sx={{ ...actionBtnSx, backgroundColor: '#1a73e8', '&:hover': { backgroundColor: '#1557b0' } }}
                     >
                       Check Out
@@ -619,7 +611,7 @@ const EquipmentCatalogPage: React.FC = () => {
                       size="small"
                       variant="outlined"
                       color="success"
-                      onClick={() => handleReturn(equipment.id)}
+                      onClick={(e) => { e.stopPropagation(); handleReturn(equipment.id); }}
                       sx={actionBtnSx}
                     >
                       Return
@@ -636,7 +628,8 @@ const EquipmentCatalogPage: React.FC = () => {
             </Card>
           );
         })}
-      </Box>
+        </Box>
+      )}
 
       {/* Equipment Details Dialog */}
       <EquipmentDetailsDialog

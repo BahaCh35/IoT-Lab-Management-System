@@ -43,8 +43,9 @@ const QRScannerPage: React.FC = () => {
   const [currentCheckouts, setCurrentCheckouts] = useState(0);
   const [overdueCount, setOverdueCount] = useState(0);
 
-  // Mock current user
-  const currentUser = {
+  // Get current user from localStorage
+  const userStr = localStorage.getItem('user');
+  const currentUser = userStr ? JSON.parse(userStr) : {
     id: '101',
     name: 'Ahmed',
   };

@@ -2,8 +2,8 @@ import { MaintenanceRequest, User } from '../types';
 import { maintenanceService as apiMaintenanceService } from './api/maintenanceService';
 
 export const maintenanceService = {
-  async getRequests(): Promise<MaintenanceRequest[]> {
-    return apiMaintenanceService.getRequests();
+  async getRequests(filters?: { status?: string; priority?: string; technician_id?: string }): Promise<MaintenanceRequest[]> {
+    return apiMaintenanceService.getRequests(filters);
   },
 
   async getRequestById(id: string): Promise<MaintenanceRequest | undefined> {

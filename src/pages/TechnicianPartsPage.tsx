@@ -27,8 +27,9 @@ const TechnicianPartsPage: React.FC = () => {
   const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'approved' | 'arrived'>('all');
   const [searchParts, setSearchParts] = useState('');
 
-  // Mock technician user
-  const mockTechnician: User = {
+  // Get current user from localStorage
+  const userStr = localStorage.getItem('user');
+  const currentUser: User = userStr ? JSON.parse(userStr) : {
     id: '201',
     name: 'John (Technician)',
     email: 'technician@novation.com',
@@ -74,8 +75,8 @@ const TechnicianPartsPage: React.FC = () => {
 
     try {
       await partsService.createPartsRequest({
-        technicianId: mockTechnician.id,
-        technicianName: mockTechnician.name,
+        technicianId: currentUser.id,
+        technicianName: currentUser.name,
         partName,
         quantity: parseInt(quantity),
         reason,

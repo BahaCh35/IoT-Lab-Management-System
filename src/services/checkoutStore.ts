@@ -27,30 +27,7 @@ function formatDate(dateStr?: string): string {
 }
 
 // Pre-seeded with demo items so the analytics page isn't empty on first load
-let items: CheckedOutItem[] = [
-  {
-    id: 'mock-1',
-    equipmentId: 'mock-osc',
-    name: 'Oscilloscope',
-    qty: 1,
-    checkedOut: 'Mar 5, 2026',
-    dueDate: '2026-03-20',
-    dueLabel: 'Mar 20',
-    checkedOutBy: 'Ali Hassan',
-    status: 'active',
-  },
-  {
-    id: 'mock-2',
-    equipmentId: 'mock-ard',
-    name: 'Arduino Uno',
-    qty: 1,
-    checkedOut: 'Mar 3, 2026',
-    dueDate: '2026-03-22',
-    dueLabel: 'Mar 22',
-    checkedOutBy: 'Sara Khalid',
-    status: 'active',
-  },
-];
+let items: CheckedOutItem[] = [];
 
 export const checkoutStore = {
   getItems(): CheckedOutItem[] {

@@ -26,4 +26,33 @@ class ActivityLogController extends Controller
             'timestamp' => $log->created_at?->toISOString(),
         ]));
     }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'userId' => 'required|exists:users,id',
+            'action' => 'required|string|max:255',
+            'entityType' => 'required|string|max:255',
+            'entityId' => 'required|string|max:255',
+            'details' => 'nullable|array',
+        ]);
+
+        $log = ActivityLog::create([
+            'user_id' => $request->userId,
+            'action' => $request->action,
+            'entity_type' => $request->entityType,
+            'entity_id' => $request->entityId,
+            'details' => $request->details ?? [],
+        ]);
+
+        return response()->json([
+            'id' => (string) $log->id,
+            'userId' => (string) $log->user_id,
+            'action' => $log->action,
+            'entityType' => $log->entity_type,
+            'entityId' => $log->entity_id,
+            'details' => $log->details,
+            'timestamp' => $log->created_at?->toISOString(),
+        ], 201);
+    }
 }
