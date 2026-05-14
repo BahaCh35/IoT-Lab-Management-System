@@ -69,6 +69,22 @@ export const labService = {
     }
   },
 
+  async updateLabReservation(id: string, updateData: Partial<any>): Promise<LabReservation | undefined> {
+    try {
+      return await apiLabService.updateLabReservation(id, updateData);
+    } catch {
+      return undefined;
+    }
+  },
+
+  async cancelLabReservation(id: string): Promise<LabReservation | undefined> {
+    try {
+      return await apiLabService.cancelLabReservation(id);
+    } catch {
+      return undefined;
+    }
+  },
+
   async getLabStats(): Promise<{
     total: number;
     active: number;

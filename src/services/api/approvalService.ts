@@ -1,6 +1,32 @@
 import { ApprovalRequest, ActivityLog, User } from '../../types';
 import apiClient from './client';
 
+type MeetingRoomBookingDetails = {
+  room_id: string;
+  roomName?: string;
+  date: string;
+  startTime: string;
+  duration: string;
+  purpose: string;
+  attendees?: string;
+};
+
+type GenericApprovalDetails = Record<string, unknown>;
+
+type CreateApprovalPayload = {
+  type: Exclude<ApprovalRequest['type'], 'meeting-room-booking'>;
+  requester: User;
+  description: string;
+  details: GenericApprovalDetails;
+  priority: ApprovalRequest['priority'];
+} | {
+  type: 'meeting-room-booking';
+  requester: User;
+  description: string;
+  details: MeetingRoomBookingDetails;
+  priority: ApprovalRequest['priority'];
+};
+
 export const approvalService = {
   // Approval Requests
   async getApprovals(): Promise<ApprovalRequest[]> {
@@ -21,13 +47,7 @@ export const approvalService = {
     return approvals.filter(a => a.type === type);
   },
 
-  async createApproval(approvalData: {
-    type: ApprovalRequest['type'];
-    requester: User;
-    description: string;
-    details: Record<string, unknown>;
-    priority: ApprovalRequest['priority'];
-  }): Promise<ApprovalRequest> {
+  async createApproval(approvalData: CreateApprovalPayload): Promise<ApprovalRequest> {
     return apiClient.post<ApprovalRequest>('/approvals', {
       type: approvalData.type,
       requester_id: approvalData.requester.id,

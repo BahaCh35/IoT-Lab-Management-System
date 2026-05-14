@@ -62,6 +62,14 @@ export const meetingRoomService = {
     return apiClient.put<MeetingRoomReservation>(`/meeting-room-reservations/${id}/reject`, { reason });
   },
 
+  async updateMeetingRoomReservation(id: string, updateData: Partial<any>): Promise<MeetingRoomReservation> {
+    return apiClient.put<MeetingRoomReservation>(`/meeting-room-reservations/${id}`, updateData);
+  },
+
+  async cancelMeetingRoomReservation(id: string): Promise<MeetingRoomReservation> {
+    return apiClient.put<MeetingRoomReservation>(`/meeting-room-reservations/${id}/cancel`);
+  },
+
   async getMeetingRoomStats(): Promise<{
     total: number;
     active: number;

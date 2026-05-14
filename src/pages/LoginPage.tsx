@@ -16,8 +16,9 @@ import { useNavigate } from 'react-router-dom';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { authService } from '../services/api';
+import { User } from '../types';
 
-const LoginPage: React.FC = () => {
+const LoginPage: React.FC<{ onLogin?: (user: User) => void }> = ({ onLogin }) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,14 +51,15 @@ const LoginPage: React.FC = () => {
         redirectPath = '/guest/equipment';
       }
 
-      // Store user in localStorage for App.tsx to pick up
-      localStorage.setItem('user', JSON.stringify(user));
+      // Store user in sessionStorage (per-tab, prevents cross-tab session conflicts)
+      sessionStorage.setItem('user', JSON.stringify(user));
 
-      // Give a brief moment for the App component to detect the change, then navigate
-      setTimeout(() => {
-        setLoading(false);
-        navigate(redirectPath);
-      }, 300);
+      // Notify parent App so React state updates immediately
+      onLogin?.(user);
+
+      // Navigate to the appropriate dashboard
+      setLoading(false);
+      navigate(redirectPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed. Please check your credentials.');
       setLoading(false);

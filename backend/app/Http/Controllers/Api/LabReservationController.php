@@ -65,6 +65,28 @@ class LabReservationController extends Controller
         return response()->json($this->formatReservation($reservation->load(['user', 'approver', 'lab'])));
     }
 
+    public function update($id, Request $request)
+    {
+        $reservation = LabReservation::findOrFail($id);
+        
+        $request->validate([
+            'purpose' => 'sometimes|string',
+            'date' => 'sometimes|date',
+            'start_time' => 'nullable',
+            'end_time' => 'nullable',
+        ]);
+
+        $reservation->update($request->only(['purpose', 'date', 'start_time', 'end_time']));
+        return response()->json($this->formatReservation($reservation->load(['user', 'approver', 'lab'])));
+    }
+
+    public function cancel($id, Request $request)
+    {
+        $reservation = LabReservation::findOrFail($id);
+        $reservation->update(['status' => 'cancelled']);
+        return response()->json($this->formatReservation($reservation->load(['user', 'approver', 'lab'])));
+    }
+
     private function formatReservation($reservation)
     {
         return [

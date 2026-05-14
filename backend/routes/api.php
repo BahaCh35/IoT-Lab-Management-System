@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\ComponentInventoryController;
 use App\Http\Controllers\Api\ApprovalController;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\StorageCabinetController;
 use App\Http\Controllers\Api\StorageDrawerController;
 use App\Http\Controllers\Api\StorageItemController;
@@ -107,8 +108,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Lab Reservations
     Route::get('/lab-reservations', [LabReservationController::class, 'index']);
     Route::post('/lab-reservations', [LabReservationController::class, 'store']);
+    Route::put('/lab-reservations/{id}', [LabReservationController::class, 'update']);
     Route::put('/lab-reservations/{id}/approve', [LabReservationController::class, 'approve']);
     Route::put('/lab-reservations/{id}/reject', [LabReservationController::class, 'reject']);
+    Route::put('/lab-reservations/{id}/cancel', [LabReservationController::class, 'cancel']);
 
     // Meeting Rooms
     Route::get('/meeting-rooms', [MeetingRoomController::class, 'index']);
@@ -121,8 +124,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Meeting Room Reservations
     Route::get('/meeting-room-reservations', [MeetingRoomReservationController::class, 'index']);
     Route::post('/meeting-room-reservations', [MeetingRoomReservationController::class, 'store']);
+    Route::put('/meeting-room-reservations/{id}', [MeetingRoomReservationController::class, 'update']);
     Route::put('/meeting-room-reservations/{id}/approve', [MeetingRoomReservationController::class, 'approve']);
     Route::put('/meeting-room-reservations/{id}/reject', [MeetingRoomReservationController::class, 'reject']);
+    Route::put('/meeting-room-reservations/{id}/cancel', [MeetingRoomReservationController::class, 'cancel']);
 
     // Users
     Route::get('/users', [UserController::class, 'index']);
@@ -183,4 +188,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/notifications/read-all', [NotificationController::class, 'markAllRead']);
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
     Route::delete('/notifications', [NotificationController::class, 'clearAll']);
+
+    // Device Tokens (FCM)
+    Route::post('/device-tokens', [DeviceTokenController::class, 'register']);
+    Route::delete('/device-tokens', [DeviceTokenController::class, 'unregister']);
 });

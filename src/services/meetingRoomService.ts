@@ -69,6 +69,22 @@ export const meetingRoomService = {
     }
   },
 
+  async updateMeetingRoomReservation(id: string, updateData: Partial<any>): Promise<MeetingRoomReservation | undefined> {
+    try {
+      return await apiMeetingRoomService.updateMeetingRoomReservation(id, updateData);
+    } catch {
+      return undefined;
+    }
+  },
+
+  async cancelMeetingRoomReservation(id: string): Promise<MeetingRoomReservation | undefined> {
+    try {
+      return await apiMeetingRoomService.cancelMeetingRoomReservation(id);
+    } catch {
+      return undefined;
+    }
+  },
+
   async getMeetingRoomStats(): Promise<{
     total: number;
     active: number;

@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'firebase' => [
+        'project_id'  => env('FIREBASE_PROJECT_ID', 'iot-lab-aa6b3'),
+        'credentials' => env('FIREBASE_CREDENTIALS', storage_path('app/firebase-service-account.json')),
+    ],
+
 ];

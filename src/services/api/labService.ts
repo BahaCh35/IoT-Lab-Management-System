@@ -62,6 +62,14 @@ export const labService = {
     return apiClient.put<LabReservation>(`/lab-reservations/${id}/reject`, { reason });
   },
 
+  async updateLabReservation(id: string, updateData: Partial<any>): Promise<LabReservation> {
+    return apiClient.put<LabReservation>(`/lab-reservations/${id}`, updateData);
+  },
+
+  async cancelLabReservation(id: string): Promise<LabReservation> {
+    return apiClient.put<LabReservation>(`/lab-reservations/${id}/cancel`);
+  },
+
   async getLabStats(): Promise<{
     total: number;
     active: number;

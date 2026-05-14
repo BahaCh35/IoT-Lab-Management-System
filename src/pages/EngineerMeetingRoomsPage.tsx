@@ -166,6 +166,7 @@ const EngineerMeetingRoomsPage: React.FC = () => {
 
   const handleSubmit = () => {
     if (!validate()) return;
+    if (!selectedRoom) return;
 
     const userStr = localStorage.getItem('user');
     const currentUser = userStr ? JSON.parse(userStr) : {
@@ -179,11 +180,19 @@ const EngineerMeetingRoomsPage: React.FC = () => {
     approvalService.createApproval({
       type: 'meeting-room-booking',
       requester: currentUser,
-      description: `Meeting room booking: ${selectedRoom?.name} on ${form.date} at ${form.startTime} for ${form.duration}`,
-      details: { roomName: selectedRoom?.name, date: form.date, startTime: form.startTime, duration: form.duration, purpose: form.purpose, attendees: form.attendees },
+      description: `Meeting room booking: ${selectedRoom.name} on ${form.date} at ${form.startTime} for ${form.duration}`,
+      details: {
+        room_id: selectedRoom.id,
+        roomName: selectedRoom.name,
+        date: form.date,
+        startTime: form.startTime,
+        duration: form.duration,
+        purpose: form.purpose,
+        attendees: form.attendees
+      },
       priority: 'medium',
     });
-    setSuccessMsg(`Reservation request for "${selectedRoom?.name}" submitted! Awaiting admin approval.`);
+    setSuccessMsg(`Reservation request for "${selectedRoom.name}" submitted! Awaiting admin approval.`);
     setForm(emptyForm());
   };
 

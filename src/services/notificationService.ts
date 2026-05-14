@@ -4,7 +4,7 @@ export type { Notification };
 
 // Helper function to get user-specific storage key
 const getUserNotificationKey = (): string => {
-  const user = localStorage.getItem('user');
+  const user = sessionStorage.getItem('user');
   if (user) {
     try {
       const userData = JSON.parse(user);

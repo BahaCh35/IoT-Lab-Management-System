@@ -11,7 +11,7 @@ class MeetingRoomReservation extends Model
 
     protected $fillable = [
         'id', 'room_id', 'user_id', 'title', 'date',
-        'start_time', 'end_time', 'status', 'approver_id'
+        'start_time', 'end_time', 'status', 'approver_id', 'approval_request_id'
     ];
 
     protected $casts = ['date' => 'date'];
@@ -29,5 +29,10 @@ class MeetingRoomReservation extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approver_id');
+    }
+
+    public function approvalRequest()
+    {
+        return $this->belongsTo(ApprovalRequest::class, 'approval_request_id');
     }
 }

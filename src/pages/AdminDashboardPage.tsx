@@ -300,6 +300,7 @@ const AdminDashboardPage: React.FC = () => {
                   <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Requester</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Description</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Date</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: '#374151' }}>Status</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: '#374151' }} align="right">
                     Actions
                   </TableCell>
@@ -327,6 +328,17 @@ const AdminDashboardPage: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ color: '#6b7280' }}>{approval.requestedDate}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
+                          size="small"
+                          sx={{
+                            backgroundColor: getStatusColor(approval.status) + '20',
+                            color: getStatusColor(approval.status),
+                            fontWeight: 500,
+                          }}
+                        />
                       </TableCell>
                       <TableCell align="right">
                         <Button

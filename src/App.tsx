@@ -10,6 +10,10 @@ import { apiClient } from './services/api';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import { NovaChat } from './components/NovaChat';
+import ToastNotification, { useToast } from './components/ToastNotification';
+
+// Hooks
+import { useFCM, unregisterFCMToken } from './hooks/useFCM';
 
 // Pages
 import LoginPage from './pages/LoginPage';
@@ -81,11 +85,23 @@ const MainLayout: React.FC<{ children: React.ReactNode; user: User | null; onLog
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem('user');
+    const stored = sessionStorage.getItem('user');
     return stored ? JSON.parse(stored) : null;
   });
 
-  const handleLogout = () => {
+  const { toast, showToast, closeToast } = useToast();
+
+  // Register FCM token and handle foreground notifications when user is logged in
+  useFCM({
+    onForegroundMessage: (payload) => {
+      showToast({ title: payload.title, body: payload.body });
+    },
+  });
+
+  const handleLogout = async () => {
+    // Unregister FCM token before clearing session
+    await unregisterFCMToken();
+
     // Clear user-specific chat history and notifications based on current user
     if (user) {
       const userChatKey = `nova_chat_history_${user.id || user.email || 'default'}`;
@@ -99,9 +115,9 @@ const App: React.FC = () => {
 
     // Clear global auth data
     setUser(null);
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('auth_token');
     localStorage.removeItem('token');
-    localStorage.removeItem('auth_token');
     localStorage.removeItem('nova_welcome_seen');
   };
 
@@ -110,46 +126,16 @@ const App: React.FC = () => {
     // Implement global search functionality
   };
 
-  // Listen for storage changes (when localStorage is updated from another tab/page)
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const stored = localStorage.getItem('user');
-      setUser(stored ? JSON.parse(stored) : null);
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    // Also check immediately in case the storage was updated synchronously
-    const checkUserState = () => {
-      const stored = localStorage.getItem('user');
-      if (stored) {
-        try {
-          const userData = JSON.parse(stored);
-          setUser(userData);
-        } catch (e) {
-          console.error('Failed to parse user data:', e);
-        }
-      }
-    };
-
-    // Call immediately and periodically
-    const interval = setInterval(checkUserState, 500);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
-    };
-  }, []);
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      <ToastNotification message={toast} onClose={closeToast} />
       <Router>
         <Routes>
           {/* Public Routes */}
           <Route
             path="/login"
-            element={user ? <Navigate to={user.role === 'admin' ? '/admin' : user.role === 'technician' ? '/technician' : user.role === 'guest' ? '/guest' : '/analytics'} /> : <LoginPage />}
+            element={user ? <Navigate to={user.role === 'admin' ? '/admin' : user.role === 'technician' ? '/technician' : user.role === 'guest' ? '/guest' : '/analytics'} /> : <LoginPage onLogin={setUser} />}
           />
 
           <Route
