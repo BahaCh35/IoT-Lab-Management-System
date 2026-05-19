@@ -27,8 +27,8 @@ const TechnicianPartsPage: React.FC = () => {
   const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'approved' | 'arrived'>('all');
   const [searchParts, setSearchParts] = useState('');
 
-  // Get current user from localStorage
-  const userStr = localStorage.getItem('user');
+  // Get current user from sessionStorage
+  const userStr = sessionStorage.getItem('user');
   const currentUser: User = userStr ? JSON.parse(userStr) : {
     id: '201',
     name: 'John (Technician)',

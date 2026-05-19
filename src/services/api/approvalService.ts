@@ -50,7 +50,6 @@ export const approvalService = {
   async createApproval(approvalData: CreateApprovalPayload): Promise<ApprovalRequest> {
     return apiClient.post<ApprovalRequest>('/approvals', {
       type: approvalData.type,
-      requester_id: approvalData.requester.id,
       description: approvalData.description,
       details: approvalData.details,
       priority: approvalData.priority,

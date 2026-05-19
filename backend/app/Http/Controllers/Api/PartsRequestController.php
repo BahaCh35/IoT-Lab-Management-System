@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\PartsRequest;
 use App\Models\ComponentInventory;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class PartsRequestController extends Controller
 {
+    public function __construct(private NotificationService $notifications) {}
     public function index(Request $request)
     {
         $query = PartsRequest::with(['technician', 'approvedBy']);
@@ -51,6 +53,13 @@ class PartsRequestController extends Controller
             'status' => 'pending',
         ]);
 
+        $this->notifications->notifyAdmins(
+            'info',
+            'New Parts Request',
+            "Technician {$partsRequest->technician_name} requested {$partsRequest->quantity}\xc3\x97 {$partsRequest->part_name}: {$partsRequest->reason}",
+            ['entity_id' => $partsRequest->id, 'action_url' => '/admin']
+        );
+
         return response()->json($this->formatRequest($partsRequest), 201);
     }
 
@@ -61,6 +70,15 @@ class PartsRequestController extends Controller
             'status' => 'approved',
             'approved_by_id' => $request->user()->id,
         ]);
+
+        $this->notifications->notifyUser(
+            $partsRequest->technician_id,
+            'success',
+            'Parts Request Approved',
+            "Your request for {$partsRequest->quantity}x {$partsRequest->part_name} has been approved.",
+            ['entity_id' => $partsRequest->id, 'action_url' => '/technician']
+        );
+
         return response()->json($this->formatRequest($partsRequest->load(['technician', 'approvedBy'])));
     }
 
@@ -71,6 +89,15 @@ class PartsRequestController extends Controller
             return response()->json(['message' => 'Can only reject pending requests'], 400);
         }
         $partsRequest->update(['status' => 'rejected']);
+
+        $this->notifications->notifyUser(
+            $partsRequest->technician_id,
+            'error',
+            'Parts Request Rejected',
+            "Your request for {$partsRequest->quantity}x {$partsRequest->part_name} was rejected.",
+            ['entity_id' => $partsRequest->id, 'action_url' => '/technician']
+        );
+
         return response()->json($this->formatRequest($partsRequest->load(['technician', 'approvedBy'])));
     }
 
@@ -99,6 +126,14 @@ class PartsRequestController extends Controller
             ['quantity' => 0]
         );
         $inventory->increment('quantity', $partsRequest->quantity);
+
+        $this->notifications->notifyUser(
+            $partsRequest->technician_id,
+            'success',
+            'Parts Arrived',
+            "Your parts ({$partsRequest->quantity}x {$partsRequest->part_name}) have arrived and been added to inventory.",
+            ['entity_id' => $partsRequest->id, 'action_url' => '/technician']
+        );
 
         return response()->json($this->formatRequest($partsRequest->load(['technician', 'approvedBy'])));
     }

@@ -96,6 +96,7 @@ const App: React.FC = () => {
     onForegroundMessage: (payload) => {
       showToast({ title: payload.title, body: payload.body });
     },
+    userId: user?.id,
   });
 
   const handleLogout = async () => {

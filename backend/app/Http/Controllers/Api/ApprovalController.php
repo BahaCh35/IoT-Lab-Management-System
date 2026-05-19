@@ -51,7 +51,6 @@ class ApprovalController extends Controller
     {
         $rules = [
             'type' => 'required|string',
-            'requester_id' => 'required|exists:users,id',
             'description' => 'required|string',
         ];
 
@@ -72,7 +71,7 @@ class ApprovalController extends Controller
                 'id' => 'approval-' . uniqid(),
                 'type' => $request->type,
                 'status' => 'pending',
-                'requester_id' => $request->requester_id,
+                'requester_id' => $request->user()->id,
                 'description' => $request->description,
                 'details' => $request->details ?? [],
                 'requested_date' => $request->requested_date ?? now()->format('Y-m-d'),
@@ -87,7 +86,7 @@ class ApprovalController extends Controller
                 MeetingRoomReservation::create([
                     'id' => 'res-' . uniqid(),
                     'room_id' => $details['room_id'],
-                    'user_id' => $request->requester_id,
+                    'user_id' => $request->user()->id,
                     'title' => $details['purpose'],
                     'date' => $details['date'],
                     'start_time' => $startTime,
@@ -99,7 +98,7 @@ class ApprovalController extends Controller
 
             // Log activity
             ActivityLog::create([
-                'user_id' => $request->requester_id,
+                'user_id' => $request->user()->id,
                 'action' => 'created',
                 'entity_type' => 'approval',
                 'entity_id' => $approval->id,

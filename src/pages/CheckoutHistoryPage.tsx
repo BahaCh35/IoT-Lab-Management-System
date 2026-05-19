@@ -56,8 +56,8 @@ const CheckoutHistoryPage: React.FC = () => {
   const [allCheckouts, setAllCheckouts] = useState<Checkout[]>([]);
   const [equipment, setEquipment] = useState<Equipment[]>([]);
 
-  // Get current user from localStorage
-  const userStr = localStorage.getItem('user');
+  // Get current user from sessionStorage
+  const userStr = sessionStorage.getItem('user');
   const currentUser = userStr ? JSON.parse(userStr) : {
     id: '101',
     name: 'Ahmed',

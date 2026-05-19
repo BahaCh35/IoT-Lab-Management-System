@@ -55,8 +55,8 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const ReservationsPage: React.FC = () => {
-  // Get user from localStorage
-  const userStr = localStorage.getItem('user');
+  // Get user from sessionStorage
+  const userStr = sessionStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
   const [tabValue, setTabValue] = useState(0);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');

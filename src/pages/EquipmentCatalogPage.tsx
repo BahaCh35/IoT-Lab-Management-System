@@ -420,9 +420,12 @@ const EquipmentCatalogPage: React.FC = () => {
   const handleReserveConfirm = async (date: string, qty: number) => {
     if (!actionTarget) return;
     try {
+      const userStr = sessionStorage.getItem('user');
+      const currentUser = userStr ? JSON.parse(userStr) : null;
+      if (!currentUser) return;
       await approvalService.createApproval({
         type: 'equipment-reservation',
-        requester: { id: 'current-engineer', name: 'My Profile', email: 'engineer@novation.com', role: 'engineer', createdAt: new Date().toISOString() },
+        requester: currentUser,
         description: `Equipment reservation: ${qty}× ${actionTarget.name} on ${date}`,
         details: { equipmentId: actionTarget.id, equipmentName: actionTarget.name, quantity: qty, reservationDate: date },
         priority: 'medium',

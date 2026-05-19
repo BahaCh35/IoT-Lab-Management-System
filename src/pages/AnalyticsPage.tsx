@@ -111,9 +111,9 @@ const AnalyticsPage: React.FC = () => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const userStr = localStorage.getItem('user');
-        const currentUser = userStr ? JSON.parse(userStr) : { id: 'current-engineer' };
-        const userId = currentUser.id;
+        const userStr = sessionStorage.getItem('user');
+        const currentUser = userStr ? JSON.parse(userStr) : null;
+        const userId = currentUser?.id;
 
         // 1. Fetch Reservations
         const [eqRes, mrRes, labRes] = await Promise.all([

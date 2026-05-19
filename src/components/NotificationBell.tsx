@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Badge,
@@ -12,6 +12,8 @@ import {
   Divider,
   Button,
   Chip,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -21,9 +23,13 @@ const NotificationBell: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [popupNotif, setPopupNotif] = useState<{ title: string; message: string; type: Notification['type'] } | null>(null);
+  const seenNotifIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     loadNotifications();
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadNotifications = async () => {
@@ -32,6 +38,15 @@ const NotificationBell: React.FC = () => {
       setNotifications(allNotifications);
       const count = await notificationService.getUnreadCount();
       setUnreadCount(count);
+
+      // Show popup for new unread notifications discovered after initial load
+      if (seenNotifIds.current.size > 0) {
+        const newUnread = allNotifications.filter(n => !n.read && !seenNotifIds.current.has(n.id));
+        if (newUnread.length > 0) {
+          setPopupNotif({ title: newUnread[0].title, message: newUnread[0].message, type: newUnread[0].type });
+        }
+      }
+      allNotifications.forEach(n => seenNotifIds.current.add(n.id));
     } catch (error) {
       console.error('Error loading notifications:', error);
     }
@@ -221,6 +236,27 @@ const NotificationBell: React.FC = () => {
           )}
         </Box>
       </Popover>
+
+      <Snackbar
+        open={!!popupNotif}
+        autoHideDuration={6000}
+        onClose={() => setPopupNotif(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setPopupNotif(null)}
+          severity={popupNotif?.type ?? 'info'}
+          variant="filled"
+          sx={{ minWidth: 280 }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
+            {popupNotif?.title}
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.92 }}>
+            {popupNotif?.message}
+          </Typography>
+        </Alert>
+      </Snackbar>
     </>
   );
 };

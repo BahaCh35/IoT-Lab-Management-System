@@ -18,9 +18,11 @@ export interface FCMMessagePayload {
 interface UseFCMOptions {
   /** Called when a foreground message arrives */
   onForegroundMessage?: (payload: FCMMessagePayload) => void;
+  /** The currently logged-in user's ID. Re-registers the device token whenever this changes. */
+  userId?: string | number | null;
 }
 
-export function useFCM({ onForegroundMessage }: UseFCMOptions = {}): void {
+export function useFCM({ onForegroundMessage, userId }: UseFCMOptions = {}): void {
   const registerToken = useCallback(async () => {
     if (!messaging) return;
 
@@ -45,9 +47,14 @@ export function useFCM({ onForegroundMessage }: UseFCMOptions = {}): void {
     }
   }, []);
 
+  // Re-register the device token whenever the logged-in user changes.
+  // Clears the cached token first so the new user always gets a fresh registration
+  // even if the browser FCM token string is unchanged (same device, different user).
   useEffect(() => {
+    if (!userId) return;
+    sessionStorage.removeItem(STORAGE_KEY);
     registerToken();
-  }, [registerToken]);
+  }, [userId, registerToken]);
 
   useEffect(() => {
     if (!messaging || !onForegroundMessage) return;

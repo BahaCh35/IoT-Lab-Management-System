@@ -51,6 +51,18 @@ class NotificationService
     }
 
     /**
+     * Notify all technician users.
+     */
+    public function notifyTechnicians(string $type, string $title, string $message, array $opts = []): void
+    {
+        $technicians = User::where('role', 'technician')->where('is_active', true)->get();
+
+        foreach ($technicians as $technician) {
+            $this->notifyUser($technician->id, $type, $title, $message, $opts);
+        }
+    }
+
+    /**
      * Send FCM push (only) to all device tokens of a user — no DB write.
      */
     private function pushToUser(int|string $userId, string $title, string $body, array $data = []): void

@@ -117,14 +117,9 @@ const EngineerLabsPage: React.FC = () => {
   const handleSubmit = () => {
     if (!validate()) return;
     
-    const userStr = localStorage.getItem('user');
-    const currentUser = userStr ? JSON.parse(userStr) : {
-      id: 'current-engineer',
-      name: 'My Profile',
-      email: 'engineer@novation.com',
-      role: 'engineer',
-      createdAt: new Date().toISOString()
-    };
+    const userStr = sessionStorage.getItem('user');
+    const currentUser = userStr ? JSON.parse(userStr) : null;
+    if (!currentUser) return;
 
     approvalService.createApproval({
       type: 'lab-reservation',

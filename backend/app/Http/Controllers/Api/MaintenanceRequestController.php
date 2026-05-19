@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MaintenanceRequest;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class MaintenanceRequestController extends Controller
 {
+    public function __construct(private NotificationService $notifications) {}
     public function index(Request $request)
     {
         $query = MaintenanceRequest::with(['reportedBy', 'assignedTo']);
@@ -61,6 +63,13 @@ class MaintenanceRequestController extends Controller
             'shelf' => $request->shelf,
         ]);
 
+        $this->notifications->notifyTechnicians(
+            'info',
+            'New Maintenance Task',
+            "New task: {$maintenanceRequest->equipment_name} — {$maintenanceRequest->problem_description}",
+            ['entity_id' => $maintenanceRequest->id, 'action_url' => '/technician']
+        );
+
         return response()->json($this->formatRequest($maintenanceRequest->load(['reportedBy'])), 201);
     }
 
@@ -78,6 +87,14 @@ class MaintenanceRequestController extends Controller
             'status' => 'in-progress',
         ]);
 
+        $maintenanceRequest->load('assignedTo');
+        $this->notifications->notifyAdmins(
+            'info',
+            'Maintenance Task Claimed',
+            "{$maintenanceRequest->assignedTo->name} claimed maintenance task for {$maintenanceRequest->equipment_name}.",
+            ['entity_id' => $maintenanceRequest->id, 'action_url' => '/admin']
+        );
+
         return response()->json($this->formatRequest($maintenanceRequest->load(['reportedBy', 'assignedTo'])));
     }
 
@@ -93,6 +110,15 @@ class MaintenanceRequestController extends Controller
 
         if (in_array($request->status, ['completed', 'cannot-repair'])) {
             $maintenanceRequest->update(['completed_date' => now()]);
+        }
+
+        if ($request->status === 'cannot-repair') {
+            $this->notifications->notifyAdmins(
+                'warning',
+                'Equipment Cannot Be Repaired',
+                "{$maintenanceRequest->equipment_name} was marked as cannot-repair.",
+                ['entity_id' => $maintenanceRequest->id, 'action_url' => '/admin']
+            );
         }
 
         return response()->json($this->formatRequest($maintenanceRequest->load(['reportedBy', 'assignedTo'])));
@@ -115,6 +141,14 @@ class MaintenanceRequestController extends Controller
             'time_spent' => $request->time_spent ?? $maintenanceRequest->time_spent,
             'parts_used' => $request->parts_used ?? $maintenanceRequest->parts_used,
         ]);
+
+        $maintenanceRequest->load('assignedTo');
+        $this->notifications->notifyAdmins(
+            'success',
+            'Maintenance Completed',
+            "{$maintenanceRequest->assignedTo->name} completed maintenance on {$maintenanceRequest->equipment_name}.",
+            ['entity_id' => $maintenanceRequest->id, 'action_url' => '/admin']
+        );
 
         return response()->json($this->formatRequest($maintenanceRequest->load(['reportedBy', 'assignedTo'])));
     }
