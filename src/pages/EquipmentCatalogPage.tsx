@@ -23,6 +23,7 @@ import {
 import { checkoutStore } from '../services/checkoutStore';
 import { approvalService } from '../services/approvalService';
 import { equipmentService } from '../services/equipmentService';
+import { maintenanceService } from '../services/maintenanceService';
 import SearchIcon from '@mui/icons-material/Search';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -31,6 +32,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import InventoryIcon from '@mui/icons-material/Inventory2';
 import WarningIcon from '@mui/icons-material/Warning';
 import BuildIcon from '@mui/icons-material/Build';
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 
 const CATEGORIES = ['All', 'microcontroller', 'tool', 'component', 'sensor', 'computer'];
 
@@ -48,7 +50,7 @@ const STATUS_LABELS: Record<string, string> = {
   damaged: 'Damaged',
 };
 
-type ItemActionState = 'none' | 'reserved' | 'checked-out';
+type ItemActionState = 'none' | 'reserved' | 'approved' | 'checked-out';
 
 interface EquipmentItem {
   id: string;
@@ -177,7 +179,7 @@ const ReserveDialog: React.FC<ReserveDialogProps> = ({ open, equipment, onClose,
           variant="contained"
           disabled={!reserveDate}
           onClick={() => { onConfirm(reserveDate, qty); setReserveDate(''); setQty(1); }}
-          sx={{ backgroundColor: '#7c3aed', '&:hover': { backgroundColor: '#6a1b9a' } }}
+          sx={{ backgroundColor: '#1a73e8', '&:hover': { backgroundColor: '#1557b0' } }}
         >
           Submit Reserve
         </Button>
@@ -194,6 +196,7 @@ interface EquipmentDetailsDialogProps {
   onCheckout: (equipment: EquipmentItem) => void;
   onReserve: (equipment: EquipmentItem) => void;
   onReturn: (id: string) => void;
+  onReport: (id: string, name: string) => void;
 }
 
 const EquipmentDetailsDialog: React.FC<EquipmentDetailsDialogProps> = ({
@@ -204,6 +207,7 @@ const EquipmentDetailsDialog: React.FC<EquipmentDetailsDialogProps> = ({
   onCheckout,
   onReserve,
   onReturn,
+  onReport,
 }) => {
   const canAct = equipment?.status === 'available' && (equipment?.availableUnits ?? 0) > 0;
 
@@ -268,24 +272,18 @@ const EquipmentDetailsDialog: React.FC<EquipmentDetailsDialogProps> = ({
       <DialogActions sx={{ gap: 1, px: 2, pb: 2 }}>
         <Button onClick={onClose} sx={{ mr: 'auto' }}>Close</Button>
         {canAct && itemState === 'none' && (
-          <>
-            <Button
-              variant="contained"
-              onClick={() => { onCheckout(equipment!); onClose(); }}
-              sx={{ backgroundColor: '#1a73e8', '&:hover': { backgroundColor: '#1557b0' } }}
-            >
-              Check Out
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => { onReserve(equipment!); onClose(); }}
-              sx={{ borderColor: '#7c3aed', color: '#7c3aed', '&:hover': { borderColor: '#6a1b9a', backgroundColor: '#f3e5f5' } }}
-            >
-              Reserve
-            </Button>
-          </>
+          <Button
+            variant="outlined"
+            onClick={() => { onReserve(equipment!); onClose(); }}
+            sx={{ borderColor: '#1a73e8', color: '#1a73e8', '&:hover': { borderColor: '#1557b0', backgroundColor: '#e8f0fe' } }}
+          >
+            Reserve
+          </Button>
         )}
-        {canAct && itemState === 'reserved' && (
+        {itemState === 'reserved' && (
+          <Chip label="Pending Approval" size="small" sx={{ fontSize: 12, backgroundColor: '#fff3e0', color: '#92400e' }} />
+        )}
+        {canAct && itemState === 'approved' && (
           <Button
             variant="contained"
             onClick={() => { onCheckout(equipment!); onClose(); }}
@@ -295,13 +293,23 @@ const EquipmentDetailsDialog: React.FC<EquipmentDetailsDialogProps> = ({
           </Button>
         )}
         {itemState === 'checked-out' && (
-          <Button
-            variant="outlined"
-            color="success"
-            onClick={() => { onReturn(equipment!.id); onClose(); }}
-          >
-            Return
-          </Button>
+          <>
+            <Button
+              variant="outlined"
+              color="success"
+              onClick={() => { onReturn(equipment!.id); onClose(); }}
+            >
+              Return
+            </Button>
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<ReportProblemIcon sx={{ fontSize: 14 }} />}
+              onClick={() => { onReport(equipment!.id, equipment!.name); onClose(); }}
+            >
+              Report
+            </Button>
+          </>
         )}
       </DialogActions>
     </Dialog>
@@ -353,11 +361,36 @@ const EquipmentCatalogPage: React.FC = () => {
 
       // Initialise per-card state from store so returning to this page shows correct buttons
       const stored = checkoutStore.getItems();
-      const initialStates: Record<string, ItemActionState> = {};
+      const computedStates: Record<string, ItemActionState> = {};
       mappedData.forEach((e) => {
-        if (stored.some((s) => s.equipmentId === e.id)) initialStates[e.id] = 'checked-out';
+        if (stored.some((s) => s.equipmentId === e.id)) computedStates[e.id] = 'checked-out';
       });
-      setItemStates(initialStates);
+
+      // Detect approved / pending reservations from the API
+      try {
+        const userStr = sessionStorage.getItem('user');
+        const userId = userStr ? JSON.parse(userStr)?.id : null;
+        if (userId) {
+          const approvals = await approvalService.getApprovalsByType('equipment-reservation');
+          approvals.forEach((approval: any) => {
+            if (String(approval.requester?.id) === String(userId)) {
+              const equipId = String((approval.details as any)?.equipmentId);
+              if (!computedStates[equipId]) {
+                if (approval.status === 'approved') {
+                  computedStates[equipId] = 'approved';
+                } else if (approval.status === 'pending') {
+                  computedStates[equipId] = 'reserved';
+                }
+                // rejected → stays 'none' so user can reserve again
+              }
+            }
+          });
+        }
+      } catch {
+        // ignore if approval fetch fails
+      }
+
+      setItemStates(computedStates);
 
     } catch (err: any) {
       console.error('Failed to fetch equipment:', err);
@@ -443,6 +476,52 @@ const EquipmentCatalogPage: React.FC = () => {
   const handleReturn = (id: string) => {
     checkoutStore.removeByEquipmentId(id);
     setItemState(id, 'none');
+  };
+
+  // Report dialog
+  const [reportOpen, setReportOpen]       = useState(false);
+  const [reportItem, setReportItem]       = useState('');
+  const [reportEquipId, setReportEquipId] = useState('');
+  const [reportType, setReportType]       = useState('');
+  const [reportDesc, setReportDesc]       = useState('');
+  const [reportSent, setReportSent]       = useState(false);
+
+  const openReport = (id: string, name: string) => {
+    setReportEquipId(id);
+    setReportItem(name);
+    setReportType('');
+    setReportDesc('');
+    setReportSent(false);
+    setReportOpen(true);
+  };
+
+  const handleReportSubmit = async () => {
+    try {
+      const userStr = sessionStorage.getItem('user');
+      const currentUser = userStr
+        ? JSON.parse(userStr)
+        : { id: 'unknown', name: 'Unknown', email: '', role: 'engineer', createdAt: new Date().toISOString() };
+      await maintenanceService.createRequest({
+        equipmentId: reportEquipId,
+        equipmentName: reportItem,
+        problemDescription: `[${reportType}] ${reportDesc}`,
+        reportedBy: currentUser,
+        priority: 'high',
+        location: { building: '', room: '', cabinet: '', drawer: '' },
+      });
+      await approvalService.createApproval({
+        type: 'damage-report',
+        requester: currentUser,
+        description: `Damage reported on "${reportItem}": [${reportType}] ${reportDesc}`,
+        details: { equipmentName: reportItem, issueType: reportType, description: reportDesc },
+        priority: 'medium',
+      });
+      setReportSent(true);
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      setSnackMsg('Failed to submit report. Please try again.');
+      setSnackOpen(true);
+    }
   };
 
   return (
@@ -578,27 +657,21 @@ const EquipmentCatalogPage: React.FC = () => {
               <CardActions sx={{ pt: 0, px: 1.5, pb: 1.5 }} onClick={(e) => e.stopPropagation()}>
                 <Box sx={{ display: 'flex', flexDirection: 'row', gap: 0.5, width: '100%' }}>
                   {canAct && state === 'none' && (
-                    <>
-                      <Button
-                        size="small"
-                        variant="contained"
-                        onClick={(e) => { e.stopPropagation(); openCheckout(equipment); }}
-                        sx={{ ...actionBtnSx, backgroundColor: '#1a73e8', '&:hover': { backgroundColor: '#1557b0' } }}
-                      >
-                        Check Out
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={(e) => { e.stopPropagation(); openReserve(equipment); }}
-                        sx={{ ...actionBtnSx, borderColor: '#7c3aed', color: '#7c3aed', '&:hover': { borderColor: '#6a1b9a', backgroundColor: '#f3e5f5' } }}
-                      >
-                        Reserve
-                      </Button>
-                    </>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={(e) => { e.stopPropagation(); openReserve(equipment); }}
+                      sx={{ ...actionBtnSx, borderColor: '#1a73e8', color: '#1a73e8', '&:hover': { borderColor: '#1557b0', backgroundColor: '#e8f0fe' } }}
+                    >
+                      Reserve
+                    </Button>
                   )}
 
-                  {canAct && state === 'reserved' && (
+                  {state === 'reserved' && (
+                    <Chip label="Pending Approval" size="small" sx={{ fontSize: 12, backgroundColor: '#fff3e0', color: '#92400e', width: '100%' }} />
+                  )}
+
+                  {canAct && state === 'approved' && (
                     <Button
                       size="small"
                       variant="contained"
@@ -610,15 +683,27 @@ const EquipmentCatalogPage: React.FC = () => {
                   )}
 
                   {state === 'checked-out' && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="success"
-                      onClick={(e) => { e.stopPropagation(); handleReturn(equipment.id); }}
-                      sx={actionBtnSx}
-                    >
-                      Return
-                    </Button>
+                    <>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="success"
+                        onClick={(e) => { e.stopPropagation(); handleReturn(equipment.id); }}
+                        sx={actionBtnSx}
+                      >
+                        Return
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="warning"
+                        startIcon={<ReportProblemIcon sx={{ fontSize: 13 }} />}
+                        onClick={(e) => { e.stopPropagation(); openReport(equipment.id, equipment.name); }}
+                        sx={actionBtnSx}
+                      >
+                        Report
+                      </Button>
+                    </>
                   )}
 
                   {!canAct && state === 'none' && (
@@ -643,6 +728,7 @@ const EquipmentCatalogPage: React.FC = () => {
         onCheckout={openCheckout}
         onReserve={openReserve}
         onReturn={handleReturn}
+        onReport={openReport}
       />
 
       {/* Checkout Dialog */}
@@ -660,6 +746,65 @@ const EquipmentCatalogPage: React.FC = () => {
         onClose={() => setReserveDialogOpen(false)}
         onConfirm={handleReserveConfirm}
       />
+
+      {/* Report Dialog */}
+      <Dialog open={reportOpen} onClose={() => setReportOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ReportProblemIcon sx={{ color: '#f59e0b', fontSize: 22 }} />
+          Borrow Report — {reportItem}
+        </DialogTitle>
+        <DialogContent dividers>
+          {reportSent ? (
+            <Box sx={{ py: 2, textAlign: 'center' }}>
+              <CheckCircleIcon sx={{ fontSize: 44, color: '#10b981', mb: 1 }} />
+              <Typography variant="body1" sx={{ fontWeight: 600, color: '#10b981' }}>
+                Report submitted!
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mt: 0.5 }}>
+                Our team will review the issue with <strong>{reportItem}</strong>.
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 0.5 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Problem Type</InputLabel>
+                <Select value={reportType} label="Problem Type" onChange={(e) => setReportType(e.target.value)}>
+                  <MenuItem value="damaged">Damaged / Broken</MenuItem>
+                  <MenuItem value="missing-part">Missing Part</MenuItem>
+                  <MenuItem value="not-working">Not Working Properly</MenuItem>
+                  <MenuItem value="calibration">Needs Calibration</MenuItem>
+                  <MenuItem value="other">Other</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                label="Description"
+                multiline
+                rows={3}
+                fullWidth
+                size="small"
+                value={reportDesc}
+                onChange={(e) => setReportDesc(e.target.value)}
+                placeholder="Describe the issue in detail..."
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setReportOpen(false)} sx={{ textTransform: 'none' }}>
+            {reportSent ? 'Close' : 'Cancel'}
+          </Button>
+          {!reportSent && (
+            <Button
+              variant="contained"
+              onClick={handleReportSubmit}
+              disabled={!reportType}
+              sx={{ backgroundColor: '#f59e0b', '&:hover': { backgroundColor: '#d97706' }, textTransform: 'none' }}
+            >
+              Submit Report
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
 
       {/* Checkout Notification */}
       <Snackbar

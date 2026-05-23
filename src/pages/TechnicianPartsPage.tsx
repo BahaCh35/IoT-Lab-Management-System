@@ -11,8 +11,14 @@ import { PartsRequest, User } from '../types';
 
 const TechnicianPartsPage: React.FC = () => {
   const [partsRequests, setPartsRequests] = useState<PartsRequest[]>([]);
-  const [inventory, setInventory] = useState<Record<string, number>>({});
-  const [lowStockParts, setLowStockParts] = useState<string[]>([]);
+  const [inventory, setInventory] = useState<Record<string, number>>({
+    'Resistor 1K Ohm': 45,
+    'Capacitor 100uF': 8,
+    'Arduino Uno': 12,
+    'Jumper Wires (pack)': 5,
+    'LED (Red)': 30,
+  });
+  const [lowStockParts, setLowStockParts] = useState<string[]>(['Capacitor 100uF', 'Jumper Wires (pack)']);
   const [stats, setStats] = useState({
     totalRequests: 0,
     pendingRequests: 0,
@@ -54,6 +60,14 @@ const TechnicianPartsPage: React.FC = () => {
       inv.forEach((item) => {
         inventoryMap[item.partName] = item.quantity;
       });
+      // Use mock examples if inventory is empty
+      if (Object.keys(inventoryMap).length === 0) {
+        inventoryMap['Resistor 1K Ohm'] = 45;
+        inventoryMap['Capacitor 100uF'] = 8;
+        inventoryMap['Arduino Uno'] = 12;
+        inventoryMap['Jumper Wires (pack)'] = 5;
+        inventoryMap['LED (Red)'] = 30;
+      }
       setInventory(inventoryMap);
 
       // Load low stock items
@@ -288,16 +302,16 @@ const TechnicianPartsPage: React.FC = () => {
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
             {getStatusIcon(filterTab)} Parts Requests
           </Typography>
-          <TableContainer component={Paper} sx={{ backgroundColor: '#f8fafc' }}>
-            <Table>
+          <TableContainer component={Paper} sx={{ backgroundColor: '#f8fafc', maxHeight: 320, overflow: 'auto' }}>
+            <Table stickyHeader>
               <TableHead>
-                <TableRow sx={{ backgroundColor: '#f3f4f6' }}>
-                  <TableCell sx={{ fontWeight: 600 }}>Part Name</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Quantity</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Reason</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Requested</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Approved By</TableCell>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600, backgroundColor: '#f3f4f6' }}>Part Name</TableCell>
+                  <TableCell sx={{ fontWeight: 600, backgroundColor: '#f3f4f6' }}>Quantity</TableCell>
+                  <TableCell sx={{ fontWeight: 600, backgroundColor: '#f3f4f6' }}>Reason</TableCell>
+                  <TableCell sx={{ fontWeight: 600, backgroundColor: '#f3f4f6' }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 600, backgroundColor: '#f3f4f6' }}>Requested</TableCell>
+                  <TableCell sx={{ fontWeight: 600, backgroundColor: '#f3f4f6' }}>Approved By</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -344,6 +358,26 @@ const TechnicianPartsPage: React.FC = () => {
           </TableContainer>
         </CardContent>
       </Card>
+
+      {/* Component Inventory Summary */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        {[
+          { label: 'Component Inventory', value: `${Object.keys(inventory).length} types`, color: '#1a73e8', bg: '#f0f4ff' },
+          { label: 'Available', value: Object.values(inventory).filter(q => q >= 10).length, color: '#10b981', bg: '#e8f5e9' },
+          { label: 'Low Stock', value: lowStockParts.length, color: '#ef4444', bg: '#fff5f5' },
+        ].map((s) => (
+          <Card key={s.label} sx={{ backgroundColor: s.bg, minWidth: 150, flex: 1 }}>
+            <CardContent>
+              <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 600, textTransform: 'uppercase' }}>
+                {s.label}
+              </Typography>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: s.color, mt: 0.5 }}>
+                {s.value}
+              </Typography>
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
 
       {/* Component Inventory */}
       <Card>

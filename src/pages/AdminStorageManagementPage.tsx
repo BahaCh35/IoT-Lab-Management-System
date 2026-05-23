@@ -409,11 +409,12 @@ const AdminStorageManagementPage: React.FC = () => {
             Storage Management
           </Typography>
           {pendingChanges.length > 0 && (
-            <Badge badgeContent={pendingChanges.length} color="warning">
+            <Badge badgeContent={pendingChanges.length} color="warning" sx={{ '& .MuiBadge-badge': { color: 'white' } }}>
               <Chip
                 label={`${pendingChanges.length} unsaved change${pendingChanges.length === 1 ? '' : 's'}`}
                 color="warning"
                 size="small"
+                sx={{ color: 'white' }}
               />
             </Badge>
           )}
@@ -604,7 +605,7 @@ const AdminStorageManagementPage: React.FC = () => {
                                         label="Moved"
                                         size="small"
                                         color="warning"
-                                        sx={{ ml: 1, height: 16, fontSize: 10 }}
+                                        sx={{ ml: 1, height: 16, fontSize: 10, color: 'white' }}
                                       />
                                     )}
                                   </Typography>

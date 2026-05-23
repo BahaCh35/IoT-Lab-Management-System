@@ -373,6 +373,8 @@ const AnalyticsPage: React.FC = () => {
     }
   };
 
+  const visibleReservations = reservations.filter((r) => r.status !== 'rejected');
+
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
@@ -586,7 +588,7 @@ const AnalyticsPage: React.FC = () => {
       </Card>
 
       {/* ── Bottom row: Reservations + Recommended ── */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {/* MY RESERVATIONS */}
         <Card>
           <CardContent>
@@ -599,9 +601,9 @@ const AnalyticsPage: React.FC = () => {
 
             {isLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
-            ) : reservations.length > 0 ? (
+            ) : visibleReservations.length > 0 ? (
                 <List dense disablePadding>
-                  {reservations.map((res: any, idx: number) => {
+                  {visibleReservations.map((res: any, idx: number) => {
                     const typeStyle = RESERVATION_TYPE_COLORS[res.type] || { bg: '#eee', color: '#333', label: 'Other' };
                   return (
                     <React.Fragment key={res.id}>
@@ -628,7 +630,7 @@ const AnalyticsPage: React.FC = () => {
                               label={getStatusLabel(res.status)}
                               size="small"
                               color={getStatusChipColor((res.status || 'pending') as ReservationStatus)}
-                              sx={{ fontSize: 11, height: 22 }}
+                              sx={{ fontSize: 11, height: 22, ...((res.status === 'pending' || res.status === 'approved') && { color: 'white' }) }}
                             />
                             {res.approverName && (
                               <Typography variant="caption" sx={{ color: '#6b7280' }}>
@@ -663,7 +665,7 @@ const AnalyticsPage: React.FC = () => {
                           </Button>
                         </Box>
                       </ListItem>
-                      {idx < reservations.length - 1 && <Divider />}
+                      {idx < visibleReservations.length - 1 && <Divider />}
                     </React.Fragment>
                   );
                 })}
@@ -714,34 +716,21 @@ const AnalyticsPage: React.FC = () => {
                     />
                     <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
                       {(recStates[item.name] || 'none') === 'none' && (
-                        <>
-                          <Button
-                            size="small"
-                            variant="contained"
-                            onClick={() => openRecCheckout(item.name)}
-                            sx={{ textTransform: 'none', fontSize: 11, py: 0.3, backgroundColor: '#1a73e8', '&:hover': { backgroundColor: '#1557b0' } }}
-                          >
-                            Check Out
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => setRecState(item.name, 'reserved')}
-                            sx={{ textTransform: 'none', fontSize: 11, py: 0.3, borderColor: '#7c3aed', color: '#7c3aed', '&:hover': { borderColor: '#6a1b9a', backgroundColor: '#f3e5f5' } }}
-                          >
-                            Reserve
-                          </Button>
-                        </>
-                      )}
-                      {(recStates[item.name] || 'none') === 'reserved' && (
                         <Button
                           size="small"
-                          variant="contained"
-                          onClick={() => openRecCheckout(item.name)}
-                          sx={{ textTransform: 'none', fontSize: 11, py: 0.3, backgroundColor: '#1a73e8', '&:hover': { backgroundColor: '#1557b0' } }}
+                          variant="outlined"
+                          onClick={() => setRecState(item.name, 'reserved')}
+                          sx={{ textTransform: 'none', fontSize: 13, py: 0.5, borderColor: '#1a73e8', color: '#1a73e8', '&:hover': { borderColor: '#1557b0', backgroundColor: '#e8f0fe' } }}
                         >
-                          Check Out
+                          Reserve
                         </Button>
+                      )}
+                      {(recStates[item.name] || 'none') === 'reserved' && (
+                        <Chip
+                          label="Pending Approval"
+                          size="small"
+                          sx={{ fontSize: 11, backgroundColor: '#fff3e0', color: '#92400e' }}
+                        />
                       )}
                       {(recStates[item.name] || 'none') === 'checked-out' && (
                         <>
