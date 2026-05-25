@@ -90,10 +90,10 @@ class NotificationController extends Controller
             'type' => $notification->type,
             'title' => $notification->title,
             'message' => $notification->message,
-            'timestamp' => $notification->created_at?->toISOString(),
+            'createdAt' => $notification->created_at?->toISOString(),
             'read' => $notification->read,
             'icon' => $notification->icon,
-            'actionUrl' => $notification->action_url,
+            'link' => $notification->action_url,
             'entityId' => $notification->entity_id,
         ];
     }

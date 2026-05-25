@@ -7,14 +7,14 @@ import WidgetsIcon from '@mui/icons-material/Widgets';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import { approvalService } from '../services/approvalService';
 import { partsService } from '../services/partsService';
-import { checkoutStore, CheckedOutItem } from '../services/checkoutStore';
-import { ApprovalRequest, PartsRequest, User } from '../types';
+import { checkoutService } from '../services/checkoutService';
+import { ApprovalRequest, Checkout, PartsRequest, User } from '../types';
 
 const AdminDashboardPage: React.FC = () => {
   const [pendingApprovals, setPendingApprovals] = useState<ApprovalRequest[]>([]);
   const [pendingPartsRequests, setPendingPartsRequests] = useState<PartsRequest[]>([]);
   const [approvedPartsRequests, setApprovedPartsRequests] = useState<PartsRequest[]>([]);
-  const [liveCheckouts, setLiveCheckouts] = useState<CheckedOutItem[]>([]);
+  const [liveCheckouts, setLiveCheckouts] = useState<Checkout[]>([]);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null);
@@ -36,7 +36,8 @@ const AdminDashboardPage: React.FC = () => {
       try {
         const pending = await approvalService.getApprovalsByStatus('pending');
         setPendingApprovals(pending);
-        setLiveCheckouts(checkoutStore.getItems());
+        const active = await checkoutService.getActiveCheckouts();
+        setLiveCheckouts(active);
         const pendingParts = await partsService.getPartsRequestsByStatus('pending');
         setPendingPartsRequests(pendingParts);
         const approvedParts = await partsService.getPartsRequestsByStatus('approved');
@@ -157,13 +158,26 @@ const AdminDashboardPage: React.FC = () => {
       // Reload data
       const pending = await approvalService.getApprovalsByStatus('pending');
       setPendingApprovals(pending);
-      setLiveCheckouts(checkoutStore.getItems());
+      const active = await checkoutService.getActiveCheckouts();
+      setLiveCheckouts(active);
 
       setActionDialogOpen(false);
     } catch (error) {
       console.error('Error processing approval:', error);
       alert('Failed to process approval. Please try again.');
     }
+  };
+
+  const getDueLabel = (isoDate: string): string => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(isoDate);
+    due.setHours(0, 0, 0, 0);
+    const diff = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return 'Overdue';
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Tomorrow';
+    return `${diff} days`;
   };
 
   const getPriorityColor = (priority: string) => {
@@ -564,31 +578,40 @@ const AdminDashboardPage: React.FC = () => {
                   liveCheckouts.map((item) => (
                     <TableRow key={item.id} sx={{ '&:hover': { backgroundColor: '#f9fafb' } }}>
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.name}</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{item.equipmentName ?? item.equipmentId}</Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">{item.checkedOutBy}</Typography>
+                        <Typography variant="body2">{item.userName}</Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">{item.qty}</Typography>
+                        <Typography variant="body2">1</Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ color: '#6b7280' }}>{item.checkedOut}</Typography>
+                        <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                          {new Date(item.checkoutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </Typography>
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={`Due: ${item.dueLabel}`}
-                          size="small"
-                          sx={{
-                            backgroundColor:
-                              item.dueLabel === 'Today' ? '#ffebee' :
-                              item.dueLabel === 'Tomorrow' ? '#fff3e0' : '#f0f4ff',
-                            color:
-                              item.dueLabel === 'Today' ? '#c62828' :
-                              item.dueLabel === 'Tomorrow' ? '#e65100' : '#1a73e8',
-                            fontWeight: 500,
-                          }}
-                        />
+                        {(() => {
+                          const label = getDueLabel(item.expectedReturnDate);
+                          return (
+                            <Chip
+                              label={`Due: ${label}`}
+                              size="small"
+                              sx={{
+                                backgroundColor:
+                                  label === 'Overdue' ? '#ffebee' :
+                                  label === 'Today'   ? '#fff3e0' :
+                                  label === 'Tomorrow'? '#fff8e1' : '#f0f4ff',
+                                color:
+                                  label === 'Overdue' ? '#c62828' :
+                                  label === 'Today'   ? '#e65100' :
+                                  label === 'Tomorrow'? '#f57f17' : '#1a73e8',
+                                fontWeight: 500,
+                              }}
+                            />
+                          );
+                        })()}
                       </TableCell>
                     </TableRow>
                   ))

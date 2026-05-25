@@ -28,6 +28,7 @@ export interface Location {
 export interface Checkout {
   id: string;
   equipmentId: string;
+  equipmentName?: string;
   userId: string;
   userName: string;
   checkoutDate: string;

@@ -169,6 +169,7 @@ class CheckoutController extends Controller
         return [
             'id' => $checkout->id,
             'equipmentId' => $checkout->equipment_id,
+            'equipmentName' => $checkout->equipment?->name,
             'userId' => (string) $checkout->user_id,
             'userName' => $checkout->user_name,
             'checkoutDate' => $checkout->checkout_date?->toISOString(),

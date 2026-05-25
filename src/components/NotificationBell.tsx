@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Badge,
@@ -23,8 +24,9 @@ const NotificationBell: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [popupNotif, setPopupNotif] = useState<{ title: string; message: string; type: Notification['type'] } | null>(null);
+  const [popupNotif, setPopupNotif] = useState<{ title: string; message: string; type: Notification['type']; link?: string } | null>(null);
   const seenNotifIds = useRef<Set<string>>(new Set());
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadNotifications();
@@ -43,7 +45,7 @@ const NotificationBell: React.FC = () => {
       if (seenNotifIds.current.size > 0) {
         const newUnread = allNotifications.filter(n => !n.read && !seenNotifIds.current.has(n.id));
         if (newUnread.length > 0) {
-          setPopupNotif({ title: newUnread[0].title, message: newUnread[0].message, type: newUnread[0].type });
+          setPopupNotif({ title: newUnread[0].title, message: newUnread[0].message, type: newUnread[0].type, link: newUnread[0].link });
         }
       }
       allNotifications.forEach(n => seenNotifIds.current.add(n.id));
@@ -58,6 +60,9 @@ const NotificationBell: React.FC = () => {
       await loadNotifications();
     }
     handleClosePopover();
+    if (notification.link) {
+      navigate(notification.link);
+    }
   };
 
   const handleOpenPopover = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -247,7 +252,13 @@ const NotificationBell: React.FC = () => {
           onClose={() => setPopupNotif(null)}
           severity={popupNotif?.type ?? 'info'}
           variant="filled"
-          sx={{ minWidth: 280 }}
+          onClick={() => {
+            if (popupNotif?.link) {
+              setPopupNotif(null);
+              navigate(popupNotif.link);
+            }
+          }}
+          sx={{ minWidth: 280, cursor: popupNotif?.link ? 'pointer' : 'default' }}
         >
           <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
             {popupNotif?.title}

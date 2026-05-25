@@ -76,7 +76,7 @@ class PartsRequestController extends Controller
             'success',
             'Parts Request Approved',
             "Your request for {$partsRequest->quantity}x {$partsRequest->part_name} has been approved.",
-            ['entity_id' => $partsRequest->id, 'action_url' => '/technician']
+            ['entity_id' => $partsRequest->id, 'action_url' => '/technician/parts']
         );
 
         return response()->json($this->formatRequest($partsRequest->load(['technician', 'approvedBy'])));
@@ -95,7 +95,7 @@ class PartsRequestController extends Controller
             'error',
             'Parts Request Rejected',
             "Your request for {$partsRequest->quantity}x {$partsRequest->part_name} was rejected.",
-            ['entity_id' => $partsRequest->id, 'action_url' => '/technician']
+            ['entity_id' => $partsRequest->id, 'action_url' => '/technician/parts']
         );
 
         return response()->json($this->formatRequest($partsRequest->load(['technician', 'approvedBy'])));
@@ -132,7 +132,7 @@ class PartsRequestController extends Controller
             'success',
             'Parts Arrived',
             "Your parts ({$partsRequest->quantity}x {$partsRequest->part_name}) have arrived and been added to inventory.",
-            ['entity_id' => $partsRequest->id, 'action_url' => '/technician']
+            ['entity_id' => $partsRequest->id, 'action_url' => '/technician/parts']
         );
 
         return response()->json($this->formatRequest($partsRequest->load(['technician', 'approvedBy'])));
@@ -149,8 +149,8 @@ class PartsRequestController extends Controller
             'pendingRequests' => $requests->where('status', 'pending')->count(),
             'approvedRequests' => $requests->where('status', 'approved')->count(),
             'arrivedRequests' => $requests->where('status', 'arrived')->count(),
-            'totalPartTypes' => $inventory->count(),
-            'lowStockParts' => $lowStock,
+            'totalInventoryItems' => $inventory->count(),
+            'lowStockItems' => $lowStock,
         ]);
     }
 

@@ -21,6 +21,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { checkoutStore } from '../services/checkoutStore';
+import { checkoutService } from '../services/checkoutService';
 import { approvalService } from '../services/approvalService';
 import { equipmentService } from '../services/equipmentService';
 import { maintenanceService } from '../services/maintenanceService';
@@ -436,8 +437,20 @@ const EquipmentCatalogPage: React.FC = () => {
   const handleCheckoutConfirm = async (qty: number, returnDate: string) => {
     if (!actionTarget) return;
     try {
-      // API Checkout interaction (assuming structure for demonstration if valid endpoint, using mock checkoutStore otherwise for consistency)
-      // await checkoutService.checkoutEquipment(...)
+      const userStr = sessionStorage.getItem('user');
+      const currentUser = userStr ? JSON.parse(userStr) : null;
+      if (currentUser) {
+        try {
+          await checkoutService.checkoutEquipment(
+            actionTarget.id,
+            String(currentUser.id),
+            currentUser.name,
+            returnDate,
+          );
+        } catch {
+          // Backend unavailable — proceed with local-only checkout
+        }
+      }
       checkoutStore.addItem(actionTarget.id, actionTarget.name, qty, returnDate);
       setItemState(actionTarget.id, 'checked-out');
       const label = new Date(returnDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });

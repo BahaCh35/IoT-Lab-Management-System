@@ -150,12 +150,22 @@ class ApprovalController extends Controller
         });
 
         // Notify the requester (engineer) that their request was approved
+        $requesterName = $approval->requester?->name ?? 'Unknown';
         $this->notifications->notifyUser(
             $approval->requester_id,
             'success',
             'Request Approved',
             "Your {$approval->type} request has been approved.",
-            ['entity_id' => $approval->id, 'action_url' => '/reservations']
+            ['entity_id' => $approval->id, 'action_url' => '/analytics']
+        );
+
+        // Notify the admin who approved (confirmation for their own action)
+        $this->notifications->notifyUser(
+            $request->user()->id,
+            'success',
+            'Request Approved',
+            "You approved {$requesterName}'s {$approval->type} request.",
+            ['entity_id' => $approval->id, 'action_url' => '/admin']
         );
 
         return response()->json($this->formatApproval($approval->load(['requester', 'reviewedBy'])));
@@ -194,12 +204,22 @@ class ApprovalController extends Controller
         });
 
         // Notify the requester (engineer) that their request was rejected
+        $requesterName = $approval->requester?->name ?? 'Unknown';
         $this->notifications->notifyUser(
             $approval->requester_id,
             'error',
             'Request Rejected',
             "Your {$approval->type} request was rejected: {$request->reason}",
-            ['entity_id' => $approval->id, 'action_url' => '/reservations']
+            ['entity_id' => $approval->id, 'action_url' => '/analytics']
+        );
+
+        // Notify the admin who rejected (confirmation for their own action)
+        $this->notifications->notifyUser(
+            $request->user()->id,
+            'info',
+            'Request Rejected',
+            "You rejected {$requesterName}'s {$approval->type} request.",
+            ['entity_id' => $approval->id, 'action_url' => '/admin']
         );
 
         return response()->json($this->formatApproval($approval->load(['requester', 'reviewedBy'])));
