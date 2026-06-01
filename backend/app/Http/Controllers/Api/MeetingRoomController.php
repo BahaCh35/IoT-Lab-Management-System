@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\MeetingRoom;
 use Illuminate\Http\Request;
 
@@ -42,6 +43,14 @@ class MeetingRoomController extends Controller
             'is_active' => $validatedData['isActive'] ?? true, // Map isActive to is_active
         ]);
 
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'create',
+            'entity_type' => 'MeetingRoom',
+            'entity_id' => (string) $room->id,
+            'details' => ['name' => $room->name, 'capacity' => $room->capacity],
+        ]);
+
         return response()->json($this->formatRoom($room), 201);
     }
 
@@ -76,6 +85,14 @@ class MeetingRoomController extends Controller
             // Update the room
             $room->update($updateData);
 
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'update',
+                'entity_type' => 'MeetingRoom',
+                'entity_id' => (string) $id,
+                'details' => ['name' => $room->name],
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => $this->formatRoom($room->fresh()),
@@ -108,6 +125,13 @@ class MeetingRoomController extends Controller
     public function destroy($id)
     {
         $room = MeetingRoom::findOrFail($id);
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'delete',
+            'entity_type' => 'MeetingRoom',
+            'entity_id' => (string) $id,
+            'details' => ['name' => $room->name],
+        ]);
         $room->delete();
         return response()->json(['message' => 'Meeting room deleted successfully']);
     }

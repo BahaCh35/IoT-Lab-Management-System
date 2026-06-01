@@ -20,10 +20,10 @@ const NovaChatHeader: React.FC<NovaChatHeaderProps> = ({ onClose }) => {
         justifyContent: 'space-between',
         padding: '16px',
         height: '60px',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #003063 0%, #00B5DF 100%)',
         borderTopLeftRadius: 12,
         borderTopRightRadius: 12,
-        boxShadow: '0 2px 8px rgba(102, 126, 234, 0.15)',
+        boxShadow: '0 2px 8px rgba(0, 181, 223, 0.15)',
       }}
     >
       {/* Left: Icon + Title */}

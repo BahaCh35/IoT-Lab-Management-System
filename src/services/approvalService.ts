@@ -69,6 +69,14 @@ export const approvalService = {
     }
   },
 
+  async completeApproval(id: string): Promise<void> {
+    try {
+      await apiApprovalService.completeApproval(id);
+    } catch {
+      // ignore
+    }
+  },
+
   async getPendingCount(): Promise<number> {
     const response = await apiApprovalService.getPendingCount();
     return response;

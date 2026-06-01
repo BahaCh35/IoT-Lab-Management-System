@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Checkout;
 use App\Models\Equipment;
 use Illuminate\Http\Request;
@@ -79,8 +80,14 @@ class CheckoutController extends Controller
 
         $equipment = Equipment::findOrFail($request->equipment_id);
 
-        if ($equipment->status !== 'available') {
-            return response()->json(['message' => 'Equipment is not available'], 400);
+        $activeCheckouts = $equipment->checkouts()->where('status', 'active')->count();
+        $activeQty = $equipment->checkouts()->where('status', 'active')->sum('quantity') ?: $activeCheckouts;
+        $availableCount = max(0, ($equipment->quantity ?? 1) - ($equipment->maintenance_count ?? 0) - ($equipment->damaged_count ?? 0) - $activeQty);
+
+        $requestedQty = max(1, (int) ($request->quantity ?? 1));
+
+        if ($availableCount < $requestedQty) {
+            return response()->json(['message' => 'Not enough units available for checkout'], 400);
         }
 
         $checkout = Checkout::create([
@@ -88,6 +95,7 @@ class CheckoutController extends Controller
             'equipment_id' => $request->equipment_id,
             'user_id' => $request->user_id,
             'user_name' => $request->user_name,
+            'quantity' => $requestedQty,
             'checkout_date' => now(),
             'expected_return_date' => $request->expected_return_date,
             'status' => 'active',
@@ -95,16 +103,28 @@ class CheckoutController extends Controller
         ]);
 
         $equipment->update([
-            'status' => 'checked-out',
             'last_used_by' => $request->user_name,
             'last_used_date' => now(),
-            'usage_count' => $equipment->usage_count + 1,
+            'usage_count' => $equipment->usage_count + $requestedQty,
+        ]);
+
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? $checkout->user_id,
+            'action' => 'checkout',
+            'entity_type' => 'Checkout',
+            'entity_id' => (string) $checkout->id,
+            'details' => [
+                'equipment_id' => $checkout->equipment_id,
+                'equipment_name' => $equipment->name,
+                'user_name' => $checkout->user_name,
+                'expected_return_date' => $checkout->expected_return_date,
+            ],
         ]);
 
         return response()->json($this->formatCheckout($checkout->load(['equipment', 'user'])), 201);
     }
 
-    public function checkin($id, Request $request)
+    public function checkin(Request $request, $id)
     {
         $checkout = Checkout::with('equipment')->findOrFail($id);
 
@@ -118,7 +138,19 @@ class CheckoutController extends Controller
             'notes' => $request->notes ?? $checkout->notes,
         ]);
 
-        $checkout->equipment->update(['status' => 'available']);
+        // Availability is derived from active checkout count — no status flip needed
+
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? $checkout->user_id,
+            'action' => 'checkin',
+            'entity_type' => 'Checkout',
+            'entity_id' => (string) $checkout->id,
+            'details' => [
+                'equipment_id' => $checkout->equipment_id,
+                'equipment_name' => $checkout->equipment->name ?? '',
+                'user_name' => $checkout->user_name,
+            ],
+        ]);
 
         return response()->json($this->formatCheckout($checkout->load(['equipment', 'user'])));
     }

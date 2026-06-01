@@ -11,13 +11,13 @@ interface NovaChatButtonProps {
 // Pulse animation for first load
 const pulse = keyframes`
   0% {
-    box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7);
+    box-shadow: 0 0 0 0 rgba(0, 181, 223, 0.7);
   }
   70% {
-    box-shadow: 0 0 0 10px rgba(102, 126, 234, 0);
+    box-shadow: 0 0 0 10px rgba(0, 181, 223, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
+    box-shadow: 0 0 0 0 rgba(0, 181, 223, 0);
   }
 `;
 
@@ -59,7 +59,7 @@ const NovaChatButton: React.FC<NovaChatButtonProps> = ({ onClick, isOpen, unread
             width: { xs: 56, md: 60 },
             height: { xs: 56, md: 60 },
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: 'linear-gradient(135deg, #003063 0%, #00B5DF 100%)',
             color: 'white',
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
             display: 'flex',
@@ -70,7 +70,7 @@ const NovaChatButton: React.FC<NovaChatButtonProps> = ({ onClick, isOpen, unread
             animation: !isOpen ? `${pulse} 2s infinite` : 'none',
             '&:hover': {
               transform: 'scale(1.1)',
-              boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
+              boxShadow: '0 6px 20px rgba(0, 181, 223, 0.4)',
             },
             transition: 'all 0.2s ease',
           }}

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Equipment;
 use Illuminate\Http\Request;
 
@@ -60,12 +61,23 @@ class EquipmentController extends Controller
             'specifications' => $request->specifications ?? [],
             'acquisition_date' => $request->acquisition_date ?? now()->format('Y-m-d'),
             'usage_count' => 0,
+            'quantity' => $request->quantity ?? 1,
+            'maintenance_count' => $request->maintenance_count ?? 0,
+            'damaged_count' => $request->damaged_count ?? 0,
             'building' => $request->building,
             'room' => $request->room,
             'cabinet' => $request->cabinet,
             'drawer' => $request->drawer,
             'shelf' => $request->shelf,
             'image_url' => $request->image_url,
+        ]);
+
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'create',
+            'entity_type' => 'Equipment',
+            'entity_id' => (string) $equipment->id,
+            'details' => ['name' => $equipment->name, 'category' => $equipment->category],
         ]);
 
         return response()->json($this->formatEquipment($equipment), 201);
@@ -76,8 +88,17 @@ class EquipmentController extends Controller
         $equipment = Equipment::findOrFail($id);
         $equipment->update($request->only([
             'name', 'description', 'category', 'status', 'specifications',
+            'quantity', 'maintenance_count', 'damaged_count',
             'building', 'room', 'cabinet', 'drawer', 'shelf', 'image_url'
         ]));
+
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'update',
+            'entity_type' => 'Equipment',
+            'entity_id' => (string) $equipment->id,
+            'details' => ['name' => $equipment->name, 'status' => $equipment->status],
+        ]);
 
         return response()->json($this->formatEquipment($equipment));
     }
@@ -85,6 +106,13 @@ class EquipmentController extends Controller
     public function destroy($id)
     {
         $equipment = Equipment::findOrFail($id);
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'delete',
+            'entity_type' => 'Equipment',
+            'entity_id' => (string) $id,
+            'details' => ['name' => $equipment->name, 'category' => $equipment->category],
+        ]);
         $equipment->delete();
 
         return response()->json(['message' => 'Equipment deleted successfully']);
@@ -127,12 +155,26 @@ class EquipmentController extends Controller
 
     private function formatEquipment($equipment)
     {
+        $activeCheckouts = $equipment->checkouts()->where('status', 'active')->count();
+        $activeQty = $equipment->checkouts()->where('status', 'active')->sum('quantity') ?: $activeCheckouts;
+        $quantity = $equipment->quantity ?? 1;
+        $maintenanceCount = $equipment->maintenance_count ?? 0;
+        $damagedCount = $equipment->damaged_count ?? 0;
+        $availableCount = max(0, $quantity - $maintenanceCount - $damagedCount - $activeQty);
+
+        // Derive status: maintenance/damaged are admin-set and stay; otherwise reflect real availability
+        if (in_array($equipment->status, ['maintenance', 'damaged'])) {
+            $derivedStatus = $equipment->status;
+        } else {
+            $derivedStatus = $availableCount > 0 ? 'available' : 'checked-out';
+        }
+
         return [
             'id' => $equipment->id,
             'name' => $equipment->name,
             'description' => $equipment->description,
             'category' => $equipment->category,
-            'status' => $equipment->status,
+            'status' => $derivedStatus,
             'location' => [
                 'building' => $equipment->building,
                 'room' => $equipment->room,
@@ -144,6 +186,10 @@ class EquipmentController extends Controller
             'specifications' => $equipment->specifications ?? [],
             'acquisitionDate' => $equipment->acquisition_date?->format('Y-m-d'),
             'usageCount' => $equipment->usage_count,
+            'quantity' => $quantity,
+            'maintenanceCount' => $maintenanceCount,
+            'damagedCount' => $damagedCount,
+            'availableCount' => $availableCount,
             'lastUsedBy' => $equipment->last_used_by,
             'lastUsedDate' => $equipment->last_used_date?->format('Y-m-d'),
             'imageUrl' => $equipment->image_url,

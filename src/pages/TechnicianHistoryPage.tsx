@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TextField, MenuItem, Select, FormControl, InputLabel, Button } from '@mui/material';
+import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TextField, MenuItem, Select, FormControl, InputLabel, Button, Menu } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import BlockIcon from '@mui/icons-material/Block';
@@ -16,6 +16,7 @@ const TechnicianHistoryPage: React.FC = () => {
   const [filteredTasks, setFilteredTasks] = useState<MaintenanceRequest[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
+  const [exportAnchor, setExportAnchor] = useState<null | HTMLElement>(null);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -243,37 +244,28 @@ const TechnicianHistoryPage: React.FC = () => {
             {filteredTasks.length} of {completedTasks.length} tasks
           </Typography>
         )}
-      </Box>
-
-      {/* Export Buttons */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-        <Button
-          variant="contained"
-          startIcon={<DownloadIcon />}
-          onClick={exportToCSV}
-          sx={{ backgroundColor: '#10b981', '&:hover': { backgroundColor: '#059669' }, textTransform: 'none' }}
-          disabled={filteredTasks.length === 0}
-        >
-          Export as CSV
-        </Button>
-        <Button
-          variant="contained"
-          startIcon={<DownloadIcon />}
-          onClick={exportToExcel}
-          sx={{ backgroundColor: '#3b82f6', '&:hover': { backgroundColor: '#2563eb' }, textTransform: 'none' }}
-          disabled={filteredTasks.length === 0}
-        >
-          Export as Excel
-        </Button>
-        <Button
-          variant="contained"
-          startIcon={<DownloadIcon />}
-          onClick={exportToPDF}
-          sx={{ backgroundColor: '#ef4444', '&:hover': { backgroundColor: '#dc2626' }, textTransform: 'none' }}
-          disabled={filteredTasks.length === 0}
-        >
-          Export as PDF
-        </Button>
+        <Box sx={{ ml: 'auto' }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={(e) => setExportAnchor(e.currentTarget)}
+            disabled={filteredTasks.length === 0}
+            sx={{ textTransform: 'none', borderRadius: 2, borderColor: '#d1d5db', color: '#374151' }}
+          >
+            Export
+          </Button>
+          <Menu
+            anchorEl={exportAnchor}
+            open={Boolean(exportAnchor)}
+            onClose={() => setExportAnchor(null)}
+            PaperProps={{ sx: { boxShadow: '0 4px 12px rgba(0,0,0,0.1)', borderRadius: 2 } }}
+          >
+            <MenuItem onClick={() => { exportToCSV(); setExportAnchor(null); }} sx={{ fontSize: 14 }}>Export as CSV</MenuItem>
+            <MenuItem onClick={() => { exportToExcel(); setExportAnchor(null); }} sx={{ fontSize: 14 }}>Export as Excel</MenuItem>
+            <MenuItem onClick={() => { exportToPDF(); setExportAnchor(null); }} sx={{ fontSize: 14 }}>Export as PDF</MenuItem>
+          </Menu>
+        </Box>
       </Box>
 
       {/* History Table */}

@@ -40,6 +40,8 @@ import GuestLabsPage from './pages/GuestLabsPage';
 import EngineerMeetingRoomsPage from './pages/EngineerMeetingRoomsPage';
 import EngineerLabsPage from './pages/EngineerLabsPage';
 import AdminActivityLogPage from './pages/AdminActivityLogPage';
+import ProfilePage from './pages/ProfilePage';
+import SettingsPage from './pages/SettingsPage';
 
 // Types
 import { User } from './types';
@@ -510,6 +512,38 @@ const App: React.FC = () => {
                 element={
                   <MainLayout user={user} onLogout={handleLogout}>
                     <GuestLabsPage />
+                  </MainLayout>
+                }
+              />
+            }
+          />
+
+          {/* Profile - all authenticated users */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute
+                isAuthenticated={!!user}
+                userRole={user?.role}
+                element={
+                  <MainLayout user={user} onLogout={handleLogout}>
+                    <ProfilePage />
+                  </MainLayout>
+                }
+              />
+            }
+          />
+
+          {/* Settings - all authenticated users */}
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute
+                isAuthenticated={!!user}
+                userRole={user?.role}
+                element={
+                  <MainLayout user={user} onLogout={handleLogout}>
+                    <SettingsPage />
                   </MainLayout>
                 }
               />

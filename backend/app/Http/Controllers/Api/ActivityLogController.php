@@ -19,6 +19,7 @@ class ActivityLogController extends Controller
         return response()->json($logs->map(fn($log) => [
             'id' => (string) $log->id,
             'userId' => (string) $log->user_id,
+            'userName' => $log->user?->name ?? 'Unknown',
             'action' => $log->action,
             'entityType' => $log->entity_type,
             'entityId' => $log->entity_id,

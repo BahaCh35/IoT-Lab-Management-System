@@ -64,6 +64,10 @@ export const approvalService = {
     return apiClient.put<ApprovalRequest>(`/approvals/${id}/reject`, { reason });
   },
 
+  async completeApproval(id: string): Promise<ApprovalRequest> {
+    return apiClient.put<ApprovalRequest>(`/approvals/${id}/complete`);
+  },
+
   async getPendingCount(): Promise<number> {
     const response = await apiClient.get<{ count: number }>('/approvals/pending-count');
     return response.count;

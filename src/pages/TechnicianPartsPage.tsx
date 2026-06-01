@@ -11,14 +11,7 @@ import { PartsRequest, User } from '../types';
 
 const TechnicianPartsPage: React.FC = () => {
   const [partsRequests, setPartsRequests] = useState<PartsRequest[]>([]);
-  const [inventory, setInventory] = useState<Record<string, number>>({
-    'Resistor 1K Ohm': 45,
-    'Capacitor 100uF': 8,
-    'Arduino Uno': 12,
-    'Jumper Wires (pack)': 5,
-    'LED (Red)': 30,
-  });
-  const [lowStockParts, setLowStockParts] = useState<string[]>(['Capacitor 100uF', 'Jumper Wires (pack)']);
+  const [inventory, setInventory] = useState<Record<string, number>>({});
   const [stats, setStats] = useState({
     totalRequests: 0,
     pendingRequests: 0,
@@ -60,21 +53,7 @@ const TechnicianPartsPage: React.FC = () => {
       inv.forEach((item) => {
         inventoryMap[item.partName] = item.quantity;
       });
-      // Use mock examples if inventory is empty
-      if (Object.keys(inventoryMap).length === 0) {
-        inventoryMap['Resistor 1K Ohm'] = 45;
-        inventoryMap['Capacitor 100uF'] = 8;
-        inventoryMap['Arduino Uno'] = 12;
-        inventoryMap['Jumper Wires (pack)'] = 5;
-        inventoryMap['LED (Red)'] = 30;
-      }
       setInventory(inventoryMap);
-
-      // Load low stock items
-      const lowStock = await partsService.getLowStockItems();
-      // Extract part names from ComponentInventory[]
-      const lowStockNames = lowStock.map((item) => item.partName);
-      setLowStockParts(lowStockNames);
 
       // Load stats
       const statsData = await partsService.getPartsStats();
@@ -83,6 +62,11 @@ const TechnicianPartsPage: React.FC = () => {
       console.error('Error loading parts data:', error);
     }
   };
+
+  // Derive low stock directly from inventory — single source of truth
+  const lowStockParts = Object.entries(inventory)
+    .filter(([, qty]) => qty < 10)
+    .map(([name]) => name);
 
   const handleRequestParts = async () => {
     if (!partName || !quantity || !reason) return;
@@ -133,9 +117,9 @@ const TechnicianPartsPage: React.FC = () => {
       case 'approved':
         return '✅';
       case 'arrived':
-        return '📦';
+        return '';
       default:
-        return '❓';
+        return '';
     }
   };
 
@@ -300,7 +284,7 @@ const TechnicianPartsPage: React.FC = () => {
           </Box>
 
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            {getStatusIcon(filterTab)} Parts Requests
+            Parts Requests
           </Typography>
           <TableContainer component={Paper} sx={{ backgroundColor: '#f8fafc', maxHeight: 320, overflow: 'auto' }}>
             <Table stickyHeader>
@@ -383,7 +367,7 @@ const TechnicianPartsPage: React.FC = () => {
       <Card>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-            📦 Component Inventory ({Object.keys(inventory).length} types)
+            Component Inventory ({Object.keys(inventory).length} types)
           </Typography>
           <TableContainer component={Paper} sx={{ backgroundColor: '#f8fafc' }}>
             <Table size="small">
@@ -399,7 +383,7 @@ const TechnicianPartsPage: React.FC = () => {
               </TableHead>
               <TableBody>
                 {Object.entries(inventory)
-                  .slice(0, 15)
+                  .sort(([, a], [, b]) => a - b)
                   .map(([partName, stock]) => {
                     const isLow = stock < 10;
                     return (

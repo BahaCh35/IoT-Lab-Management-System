@@ -3,7 +3,7 @@ import {
   Box, Card, CardContent, Typography, Button, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Chip, Paper, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, Select, MenuItem, FormControl,
-  InputLabel, Divider, List, ListItem, ListItemText, IconButton,
+  InputLabel, Divider, List, ListItem, ListItemText, IconButton, Autocomplete,
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import BuildIcon from '@mui/icons-material/Build';
@@ -13,7 +13,10 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import { maintenanceService } from '../services/maintenanceService';
+import { partsService } from '../services/partsService';
 import { MaintenanceRequest } from '../types';
+
+interface UsedPart { name: string; qty: number; isNew: boolean; }
 
 const TechnicianDashboardPage: React.FC = () => {
   const [allTasks, setAllTasks] = useState<MaintenanceRequest[]>([]);
@@ -22,7 +25,9 @@ const TechnicianDashboardPage: React.FC = () => {
   const [statusUpdate, setStatusUpdate] = useState('');
   const [notes, setNotes] = useState('');
   const [partsUsedInput, setPartsUsedInput] = useState('');
-  const [partsUsed, setPartsUsed] = useState<string[]>([]);
+  const [partQtyInput, setPartQtyInput] = useState(1);
+  const [partsUsed, setPartsUsed] = useState<UsedPart[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<string[]>([]);
   const [searchEquipment, setSearchEquipment] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
@@ -40,6 +45,8 @@ const TechnicianDashboardPage: React.FC = () => {
       setAllTasks(tasks);
       const statsData = await maintenanceService.getMaintenanceStats();
       setStats(statsData);
+      const inv = await partsService.getComponentInventory();
+      setInventoryItems(inv.map((i) => i.partName));
     } catch (error) {
       console.error('Error loading maintenance requests:', error);
     }
@@ -51,27 +58,39 @@ const TechnicianDashboardPage: React.FC = () => {
     setSelectedTask(task);
     setStatusUpdate(task.status);
     setNotes(task.notes);
-    setPartsUsed([...task.partsUsed]);
+    setPartsUsed(task.partsUsed.map((p) => ({ name: p, qty: 1, isNew: false })));
     setPartsUsedInput('');
+    setPartQtyInput(1);
     setOpenDialog(true);
   };
 
   const handleAddPart = () => {
-    if (partsUsedInput.trim()) {
-      setPartsUsed([...partsUsed, partsUsedInput.trim()]);
-      setPartsUsedInput('');
-    }
+    const name = partsUsedInput.trim();
+    if (!name) return;
+    setPartsUsed((prev) => [...prev, { name, qty: partQtyInput, isNew: true }]);
+    setPartsUsedInput('');
+    setPartQtyInput(1);
   };
 
   const handleRemovePart = (index: number) => {
-    setPartsUsed(partsUsed.filter((_, i) => i !== index));
+    setPartsUsed((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleUpdateTask = async () => {
     if (!selectedTask) return;
     try {
       await maintenanceService.updateRequestStatus(selectedTask.id, statusUpdate as MaintenanceRequest['status']);
-      await maintenanceService.updateRequestNotes(selectedTask.id, notes);
+      const partNames = partsUsed.map((p) => p.qty > 1 ? `${p.name} x${p.qty}` : p.name);
+      await maintenanceService.updateRequestNotes(selectedTask.id, notes, partNames);
+      // Consume newly-added parts from component inventory
+      const newParts = partsUsed.filter((p) => p.isNew);
+      for (const part of newParts) {
+        try {
+          await partsService.consumeComponent(part.name, part.qty);
+        } catch {
+          // Part may not be in inventory — skip silently
+        }
+      }
       await reload();
       setOpenDialog(false);
       setPartsUsed([]);
@@ -187,16 +206,7 @@ const TechnicianDashboardPage: React.FC = () => {
             <MenuItem value="waiting-parts">Waiting Parts</MenuItem>
           </Select>
         </FormControl>
-        <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel>Priority</InputLabel>
-          <Select value={filterPriority} label="Priority" onChange={(e) => setFilterPriority(e.target.value)}>
-            <MenuItem value="">All Priorities</MenuItem>
-            <MenuItem value="high">High</MenuItem>
-            <MenuItem value="medium">Medium</MenuItem>
-            <MenuItem value="low">Low</MenuItem>
-          </Select>
-        </FormControl>
-        {(searchEquipment || filterStatus || filterPriority) && (
+        {(searchEquipment || filterStatus) && (
           <Button
             size="small"
             variant="outlined"
@@ -206,7 +216,7 @@ const TechnicianDashboardPage: React.FC = () => {
             Clear
           </Button>
         )}
-        {(searchEquipment || filterStatus || filterPriority) && (
+        {(searchEquipment || filterStatus) && (
           <Typography variant="caption" sx={{ color: '#6b7280', alignSelf: 'center' }}>
             {displayTasks.length} of {activeTasks.length} tasks
           </Typography>
@@ -217,7 +227,6 @@ const TechnicianDashboardPage: React.FC = () => {
       <Card sx={{ mb: 4 }}>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <AssignmentIcon sx={{ color: '#1a73e8' }} />
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
               Maintenance Tasks ({activeTasks.length})
             </Typography>
@@ -228,7 +237,6 @@ const TechnicianDashboardPage: React.FC = () => {
                 <TableRow sx={{ backgroundColor: '#f3f4f6' }}>
                   <TableCell sx={{ fontWeight: 600 }}>Equipment</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Problem</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Priority</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Reported</TableCell>
                   <TableCell sx={{ fontWeight: 600 }} align="center">Action</TableCell>
@@ -248,13 +256,6 @@ const TechnicianDashboardPage: React.FC = () => {
                             ? task.problemDescription.substring(0, 45) + '...'
                             : task.problemDescription}
                         </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={task.priority.toUpperCase()}
-                          size="small"
-                          sx={{ backgroundColor: getPriorityColor(task.priority), color: 'white' }}
-                        />
                       </TableCell>
                       <TableCell>
                         <Chip
@@ -280,7 +281,7 @@ const TechnicianDashboardPage: React.FC = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} sx={{ textAlign: 'center', py: 4 }}>
+                    <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4 }}>
                       <AssignmentIcon sx={{ fontSize: 44, color: '#d1d5db', display: 'block', mx: 'auto', mb: 1 }} />
                       <Typography variant="body2" sx={{ color: '#6b7280' }}>
                         No tasks match the current filters
@@ -334,16 +335,13 @@ const TechnicianDashboardPage: React.FC = () => {
                   {hasTasks && (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                       {tasksOnDay.slice(0, 2).map((task) => (
-                        <Chip
+                        <Typography
                           key={task.id}
-                          label={task.priority === 'high' ? 'High' : task.priority === 'medium' ? 'Med' : 'Low'}
-                          size="small"
-                          sx={{
-                            height: 18, fontSize: '0.65rem',
-                            backgroundColor: task.priority === 'high' ? '#fee2e2' : task.priority === 'medium' ? '#fff3e0' : '#dbeafe',
-                            color: task.priority === 'high' ? '#dc2626' : task.priority === 'medium' ? '#b45309' : '#1e40af',
-                          }}
-                        />
+                          variant="caption"
+                          sx={{ fontSize: '0.65rem', color: '#1a73e8', fontWeight: 500, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        >
+                          {task.equipmentName}
+                        </Typography>
                       ))}
                       {tasksOnDay.length > 2 && (
                         <Typography variant="caption" sx={{ color: '#6b7280', fontSize: '0.65rem' }}>
@@ -357,7 +355,7 @@ const TechnicianDashboardPage: React.FC = () => {
             })}
           </Box>
           <Typography variant="caption" sx={{ display: 'block', mt: 2, color: '#6b7280' }}>
-            Color indicates task priority. Red = High, Orange = Medium, Blue = Low.
+            Blue cells indicate days with reported maintenance tasks.
           </Typography>
         </CardContent>
       </Card>
@@ -402,17 +400,33 @@ const TechnicianDashboardPage: React.FC = () => {
               {/* Parts Used */}
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>Parts Used</Typography>
-                <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                  <TextField
-                    label="Part name"
-                    value={partsUsedInput}
-                    onChange={(e) => setPartsUsedInput(e.target.value)}
-                    placeholder="e.g., Display Cable 12V"
-                    size="small"
-                    fullWidth
-                    onKeyPress={(e) => { if (e.key === 'Enter') handleAddPart(); }}
+                <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'flex-start' }}>
+                  <Autocomplete
+                    freeSolo
+                    options={inventoryItems}
+                    inputValue={partsUsedInput}
+                    onInputChange={(_, value) => setPartsUsedInput(value)}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Part name"
+                        placeholder="Select or type part name"
+                        size="small"
+                        onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPart(); } }}
+                      />
+                    )}
+                    sx={{ flex: 1 }}
                   />
-                  <Button onClick={handleAddPart} variant="contained" size="small" startIcon={<AddIcon />} sx={{ whiteSpace: 'nowrap' }}>
+                  <TextField
+                    label="Qty"
+                    type="number"
+                    value={partQtyInput}
+                    onChange={(e) => setPartQtyInput(Math.max(1, Number(e.target.value)))}
+                    size="small"
+                    sx={{ width: 70 }}
+                    inputProps={{ min: 1 }}
+                  />
+                  <Button onClick={handleAddPart} variant="contained" size="small" startIcon={<AddIcon />} sx={{ whiteSpace: 'nowrap', mt: 0.5 }}>
                     Add
                   </Button>
                 </Box>
@@ -427,7 +441,13 @@ const TechnicianDashboardPage: React.FC = () => {
                           </IconButton>
                         }
                       >
-                        <ListItemText primary={`• ${part}`} />
+                        <ListItemText
+                          primary={`• ${part.name}${part.qty > 1 ? ` × ${part.qty}` : ''}`}
+                          secondary={part.isNew
+                            ? (inventoryItems.includes(part.name) ? 'Will deduct from inventory' : 'Not in inventory')
+                            : undefined}
+                          secondaryTypographyProps={{ sx: { fontSize: 11, color: inventoryItems.includes(part.name) ? '#10b981' : '#f59e0b' } }}
+                        />
                       </ListItem>
                     ))}
                   </List>

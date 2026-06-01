@@ -1,28 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Paper, TextField, MenuItem, Select, FormControl, InputLabel, Button } from '@mui/material';
+import { Box, Card, CardContent, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Paper, TextField, MenuItem, Select, FormControl, InputLabel, Button, Menu } from '@mui/material';
 import HistoryIcon from '@mui/icons-material/History';
 import SearchIcon from '@mui/icons-material/Search';
+import DownloadIcon from '@mui/icons-material/Download';
 import { approvalService } from '../services/approvalService';
 import { ActivityLog } from '../types';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-const getStatusStyle = (status: string) => {
-  switch (status.toLowerCase()) {
+const getStatusStyle = (action: string) => {
+  switch (action.toLowerCase()) {
+    case 'login':
+      return { bg: '#e3f2fd', color: '#1565c0', label: 'Login' };
+    case 'logout':
+      return { bg: '#f3f4f6', color: '#6b7280', label: 'Logout' };
+    case 'create':
+      return { bg: '#e3f2fd', color: '#1565c0', label: 'Create' };
+    case 'update':
+      return { bg: '#eef2ff', color: '#3730a3', label: 'Update' };
+    case 'delete':
+      return { bg: '#fee2e2', color: '#c62828', label: 'Delete' };
+    case 'checkout':
+      return { bg: '#fff3e0', color: '#e65100', label: 'Checkout' };
+    case 'checkin':
+      return { bg: '#e8f5e9', color: '#2e7d32', label: 'Check-in' };
+    case 'activate':
+      return { bg: '#e8f5e9', color: '#2e7d32', label: 'Activate' };
+    case 'deactivate':
+      return { bg: '#fffde7', color: '#f57f17', label: 'Deactivate' };
     case 'approved':
-    case 'success':
-      return { bg: '#e8f5e9', color: '#2e7d32', label: status === 'success' ? 'Success' : 'Approved' };
-    case 'pending':
-    case 'created':
-      return { bg: '#fff8e1', color: '#f57f17', label: status.charAt(0).toUpperCase() + status.slice(1) };
+      return { bg: '#e8f5e9', color: '#2e7d32', label: 'Approved' };
     case 'rejected':
-    case 'error':
-      return { bg: '#ffebee', color: '#c62828', label: status.charAt(0).toUpperCase() + status.slice(1) };
+      return { bg: '#ffebee', color: '#c62828', label: 'Rejected' };
+    case 'created':
+      return { bg: '#e3f2fd', color: '#1565c0', label: 'Created' };
+    case 'success':
+      return { bg: '#e8f5e9', color: '#2e7d32', label: 'Success' };
+    case 'pending':
+      return { bg: '#fff8e1', color: '#f57f17', label: 'Pending' };
     default:
-      return { bg: '#f3f4f6', color: '#6b7280', label: status.charAt(0).toUpperCase() + status.slice(1) };
+      return { bg: '#f3f4f6', color: '#6b7280', label: action.charAt(0).toUpperCase() + action.slice(1) };
   }
 };
 
 const getTypeStyle = (type: string) => {
   switch (type.toUpperCase()) {
+    case 'USER':
+      return { bg: '#f3e8ff', color: '#7c3aed' };
+    case 'AUTH':
+      return { bg: '#e3f2fd', color: '#1565c0' };
+    case 'EQUIPMENT':
+      return { bg: '#fff3e0', color: '#e65100' };
+    case 'CHECKOUT':
+      return { bg: '#fffde7', color: '#f57f17' };
+    case 'LAB':
+      return { bg: '#e0f2f1', color: '#00695c' };
+    case 'MEETINGROOM':
+    case 'MEETING_ROOM':
+      return { bg: '#f3e5f5', color: '#6a1b9a' };
     case 'APPROVAL':
     case 'APPROVAL_REQUEST':
       return { bg: '#e8eaf6', color: '#3949ab' };
@@ -47,6 +83,64 @@ const AdminActivityLogPage: React.FC = () => {
   const [stats, setStats] = useState({ total: 0, approved: 0, rejected: 0, created: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exportAnchor, setExportAnchor] = useState<null | HTMLElement>(null);
+
+  const buildRows = (logs: ActivityLog[]) =>
+    logs.map((log) => ({
+      Timestamp: log.timestamp,
+      Type: log.entityType,
+      User: log.userName ?? log.userId,
+      Resource: formatResource(log),
+      Action: getStatusStyle(log.action).label,
+    }));
+
+  const exportCSV = () => {
+    const rows = buildRows(filteredLogs);
+    const header = Object.keys(rows[0] || {}).join(',');
+    const body = rows.map((r) => Object.values(r).map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','));
+    const csv = [header, ...body].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `activity-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setExportAnchor(null);
+  };
+
+  const exportExcel = () => {
+    const rows = buildRows(filteredLogs);
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Activity Logs');
+    XLSX.writeFile(wb, `activity-logs-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    setExportAnchor(null);
+  };
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text('Activity Logs', 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Exported: ${new Date().toLocaleString()}  |  ${filteredLogs.length} entries`, 14, 22);
+    autoTable(doc, {
+      startY: 27,
+      head: [['Timestamp', 'Type', 'User', 'Resource', 'Action']],
+      body: filteredLogs.map((log) => [
+        log.timestamp,
+        log.entityType,
+        log.userName ?? log.userId,
+        formatResource(log),
+        getStatusStyle(log.action).label,
+      ]),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [26, 115, 232] },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+    doc.save(`activity-logs-${new Date().toISOString().slice(0, 10)}.pdf`);
+    setExportAnchor(null);
+  };
 
   useEffect(() => {
     const loadLogs = async () => {
@@ -55,9 +149,9 @@ const AdminActivityLogPage: React.FC = () => {
         setActivityLogs(logs);
         setStats({
           total: logs.length,
-          approved: logs.filter((l) => l.action.toLowerCase() === 'approved').length,
-          rejected: logs.filter((l) => l.action.toLowerCase() === 'rejected').length,
-          created: logs.filter((l) => l.action.toLowerCase() === 'created').length,
+          approved: logs.filter((l) => ['create', 'activate', 'checkin', 'approved'].includes(l.action.toLowerCase())).length,
+          rejected: logs.filter((l) => ['delete', 'deactivate', 'rejected'].includes(l.action.toLowerCase())).length,
+          created: logs.filter((l) => ['checkout', 'update', 'login', 'logout'].includes(l.action.toLowerCase())).length,
         });
       } catch (fetchError) {
         setError('Failed to load activity logs.');
@@ -74,7 +168,7 @@ const AdminActivityLogPage: React.FC = () => {
     const matchesType = logFilter === 'all' || log.entityType.toUpperCase() === logFilter.toUpperCase();
     const searchText = logSearch.toLowerCase();
     const matchesSearch =
-      log.userId.toLowerCase().includes(searchText) ||
+      (log.userName ?? log.userId).toLowerCase().includes(searchText) ||
       log.entityType.toLowerCase().includes(searchText) ||
       JSON.stringify(log.details).toLowerCase().includes(searchText);
     return matchesType && matchesSearch;
@@ -82,6 +176,11 @@ const AdminActivityLogPage: React.FC = () => {
 
   const formatResource = (log: ActivityLog) => {
     if (typeof log.details === 'string') return log.details;
+    if (log.details?.name) {
+      const extra = log.details.email ? ` (${log.details.email})` : log.details.status ? ` — ${log.details.status}` : '';
+      return `${log.details.name}${extra}`;
+    }
+    if (log.details?.equipment_name) return `${log.details.equipment_name} → ${log.details.user_name ?? ''}`;
     if (log.details?.description) return log.details.description;
     if (log.entityId && log.entityType) return `${log.entityType.replace(/_/g, ' ')} — ${log.entityId}`;
     return JSON.stringify(log.details || {});
@@ -101,9 +200,9 @@ const AdminActivityLogPage: React.FC = () => {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 3, mb: 4 }}>
         {[
           { label: 'Total Actions', value: stats.total, color: '#1a73e8', bg: '#f0f4ff' },
-          { label: 'Approved', value: stats.approved, color: '#10b981', bg: '#e8f5e9' },
-          { label: 'Rejected', value: stats.rejected, color: '#ef4444', bg: '#fee2e2' },
-          { label: 'Created', value: stats.created, color: '#3b82f6', bg: '#e3f2fd' },
+          { label: 'Created / Approved', value: stats.approved, color: '#10b981', bg: '#e8f5e9' },
+          { label: 'Deleted / Rejected', value: stats.rejected, color: '#ef4444', bg: '#fee2e2' },
+          { label: 'Checkouts / Logins', value: stats.created, color: '#f59e0b', bg: '#fffde7' },
         ].map((s) => (
           <Card key={s.label} sx={{ backgroundColor: s.bg }}>
             <CardContent>
@@ -130,6 +229,27 @@ const AdminActivityLogPage: React.FC = () => {
                 {filteredLogs.length} entries
               </Typography>
             </Box>
+            <Box>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={(e) => setExportAnchor(e.currentTarget)}
+                sx={{ textTransform: 'none', borderRadius: 2, borderColor: '#d1d5db', color: '#374151' }}
+              >
+                Export
+              </Button>
+              <Menu
+                anchorEl={exportAnchor}
+                open={Boolean(exportAnchor)}
+                onClose={() => setExportAnchor(null)}
+                PaperProps={{ sx: { boxShadow: '0 4px 12px rgba(0,0,0,0.1)', borderRadius: 2 } }}
+              >
+                <MenuItem onClick={exportCSV} sx={{ fontSize: 14, gap: 1 }}>Export as CSV</MenuItem>
+                <MenuItem onClick={exportExcel} sx={{ fontSize: 14, gap: 1 }}>Export as Excel</MenuItem>
+                <MenuItem onClick={exportPDF} sx={{ fontSize: 14, gap: 1 }}>Export as PDF</MenuItem>
+              </Menu>
+            </Box>
           </Box>
 
           <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -145,8 +265,13 @@ const AdminActivityLogPage: React.FC = () => {
               <InputLabel>Type</InputLabel>
               <Select value={logFilter} label="Type" onChange={(e) => setLogFilter(e.target.value)}>
                 <MenuItem value="all">All Types</MenuItem>
+                <MenuItem value="User">User</MenuItem>
+                <MenuItem value="AUTH">Auth</MenuItem>
+                <MenuItem value="Equipment">Equipment</MenuItem>
+                <MenuItem value="Checkout">Checkout</MenuItem>
+                <MenuItem value="Lab">Lab</MenuItem>
+                <MenuItem value="MeetingRoom">Meeting Room</MenuItem>
                 <MenuItem value="APPROVAL">Approval</MenuItem>
-                <MenuItem value="LOGIN">Login</MenuItem>
                 <MenuItem value="BOOKING">Booking</MenuItem>
                 <MenuItem value="RESERVATION">Reservation</MenuItem>
                 <MenuItem value="MAINTENANCE">Maintenance</MenuItem>
@@ -167,15 +292,15 @@ const AdminActivityLogPage: React.FC = () => {
             )}
           </Box>
 
-          <TableContainer component={Paper} sx={{ backgroundColor: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 2 }}>
-            <Table size="small">
+          <TableContainer component={Paper} sx={{ backgroundColor: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 2, maxHeight: 508, overflow: 'auto' }}>
+            <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow sx={{ backgroundColor: '#f3f4f6' }}>
-                  <TableCell sx={{ fontWeight: 600, fontSize: 12, color: '#6b7280', py: 1.5 }}>Timestamp</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: 12, color: '#6b7280', py: 1.5 }}>Type</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: 12, color: '#6b7280', py: 1.5 }}>User</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: 12, color: '#6b7280', py: 1.5 }}>Resource / Event</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: 12, color: '#6b7280', py: 1.5 }} align="right">Action</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: 12, color: '#6b7280', py: 1.5, backgroundColor: '#f3f4f6' }}>Timestamp</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: 12, color: '#6b7280', py: 1.5, backgroundColor: '#f3f4f6' }}>Type</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: 12, color: '#6b7280', py: 1.5, backgroundColor: '#f3f4f6' }}>User</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: 12, color: '#6b7280', py: 1.5, backgroundColor: '#f3f4f6' }}>Resource / Event</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: 12, color: '#6b7280', py: 1.5, backgroundColor: '#f3f4f6' }} align="right">Action</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -211,7 +336,7 @@ const AdminActivityLogPage: React.FC = () => {
                           />
                         </TableCell>
                         <TableCell sx={{ color: '#1a73e8', fontSize: 13, fontWeight: 500, py: 1.2 }}>
-                          {log.userId}
+                          {log.userName ?? log.userId}
                         </TableCell>
                         <TableCell sx={{ color: '#374151', fontSize: 13, py: 1.2 }}>
                           {formatResource(log)}

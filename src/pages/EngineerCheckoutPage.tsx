@@ -123,6 +123,7 @@ const EngineerCheckoutPage: React.FC = () => {
         currentUser.id,
         currentUser.name,
         new Date(expectedReturnDate).toISOString(),
+        1,
         checkoutNotes || undefined
       );
 

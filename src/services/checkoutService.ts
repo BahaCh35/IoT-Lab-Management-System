@@ -30,9 +30,10 @@ export const checkoutService = {
     userId: string,
     userName: string,
     expectedReturnDate: string,
+    quantity: number = 1,
     notes?: string
   ): Promise<Checkout> {
-    return apiCheckoutService.checkoutEquipment(equipmentId, userId, userName, expectedReturnDate, notes);
+    return apiCheckoutService.checkoutEquipment(equipmentId, userId, userName, expectedReturnDate, quantity, notes);
   },
 
   async checkInEquipment(checkoutId: string, notes?: string): Promise<Checkout> {

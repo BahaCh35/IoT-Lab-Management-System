@@ -10,6 +10,10 @@ export interface Equipment {
   specifications: Record<string, string>;
   acquisitionDate: string;
   usageCount: number;
+  quantity?: number;
+  maintenanceCount?: number;
+  damagedCount?: number;
+  availableCount?: number;
   lastUsedBy?: string;
   lastUsedDate?: string;
   imageUrl?: string;
@@ -189,6 +193,7 @@ export interface LabReservation {
 export interface ActivityLog {
   id: string;
   userId: string;
+  userName?: string;
   action: string;
   entityType: string;
   entityId: string;

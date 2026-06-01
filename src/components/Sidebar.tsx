@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Drawer, List, ListItem, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import logo from '../assets/logo.png';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import InventoryIcon from '@mui/icons-material/Inventory2';
@@ -31,8 +32,8 @@ const ADMIN_MENU_ITEMS = [
   { label: 'Labs Management',    path: '/admin/labs',       icon: MonitorIcon },
   { label: 'Storage Management', path: '/admin/storage',    icon: StorageIcon },
   { label: 'Users',              path: '/admin/users',      icon: PeopleIcon },
-  { label: 'Activity Logs',      path: '/admin/activity',   icon: HistoryIcon },
   { label: 'Analytics',          path: '/admin/analytics',  icon: AnalyticsIcon },
+  { label: 'Activity Logs',      path: '/admin/activity',   icon: HistoryIcon },
 ];
 
 const TECHNICIAN_MENU_ITEMS = [
@@ -103,33 +104,8 @@ const Sidebar: React.FC<SidebarProps> = ({ open = true, onClose, user }) => {
       }}
     >
       {/* Logo Section */}
-      <Box sx={{ p: 3, borderBottom: '1px solid #e5e7eb' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              background: 'linear-gradient(135deg, #1a73e8 0%, #7c3aed 100%)',
-              borderRadius: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 'bold',
-              fontSize: '1.5rem',
-            }}
-          >
-            SL
-          </Box>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: '#111827' }}>
-              SmartLab
-            </Typography>
-            <Typography variant="caption" sx={{ color: '#6b7280' }}>
-              Lab Management
-            </Typography>
-          </Box>
-        </Box>
+      <Box sx={{ p: 3, borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'center' }}>
+        <img src={logo} alt="SmartLab" style={{ height: 64, width: 'auto', maxWidth: '100%' }} />
       </Box>
 
       {/* Main Menu */}
@@ -179,7 +155,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open = true, onClose, user }) => {
       </List>
 
       {/* Bottom Menu */}
-      <Box sx={{ borderTop: '1px solid #e5e7eb', px: 0, py: 2 }}>
+      <Box sx={{ borderTop: '1px solid #e5e7eb', px: 0, pt: 1, pb: 2 }}>
         <List sx={{ px: 0 }}>
           {/* Show AI Assistant and Settings for all roles except guest */}
           {user?.role !== 'guest' && BOTTOM_MENU.map((item) => {
@@ -277,6 +253,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open = true, onClose, user }) => {
           left: 0,
           marginTop: 0,
           zIndex: 1000,
+          overflowX: 'hidden',
         },
       }}
     >

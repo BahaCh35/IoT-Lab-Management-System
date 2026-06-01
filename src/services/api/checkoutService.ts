@@ -29,6 +29,7 @@ export const checkoutService = {
     userId: string,
     userName: string,
     expectedReturnDate: string,
+    quantity: number = 1,
     notes?: string
   ): Promise<Checkout> {
     return apiClient.post<Checkout>('/checkouts', {
@@ -36,6 +37,7 @@ export const checkoutService = {
       user_id: userId,
       user_name: userName,
       expected_return_date: expectedReturnDate,
+      quantity,
       notes,
     });
   },

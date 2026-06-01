@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Lab;
 use Illuminate\Http\Request;
 
@@ -40,6 +41,14 @@ class LabController extends Controller
             'is_active' => $validatedData['isActive'] ?? true, // Map isActive to is_active
         ]);
 
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'create',
+            'entity_type' => 'Lab',
+            'entity_id' => (string) $lab->id,
+            'details' => ['name' => $lab->name, 'capacity' => $lab->capacity],
+        ]);
+
         return response()->json($this->formatLab($lab), 201);
     }
 
@@ -73,6 +82,14 @@ class LabController extends Controller
             // Update the lab
             $lab->update($updateData);
 
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'update',
+                'entity_type' => 'Lab',
+                'entity_id' => (string) $id,
+                'details' => ['name' => $lab->name],
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => $this->formatLab($lab->fresh()),
@@ -105,6 +122,13 @@ class LabController extends Controller
     public function destroy($id)
     {
         $lab = Lab::findOrFail($id);
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'delete',
+            'entity_type' => 'Lab',
+            'entity_id' => (string) $id,
+            'details' => ['name' => $lab->name],
+        ]);
         $lab->delete();
         return response()->json(['message' => 'Lab deleted successfully']);
     }

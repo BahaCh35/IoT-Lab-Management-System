@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   AppBar,
   Box,
@@ -24,8 +25,24 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onSearch, user, onLogout }) => {
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-  const [searchValue, setSearchValue] = React.useState('');
+  const navigate = useNavigate();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [searchValue, setSearchValue] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = () => {
+      const stored = sessionStorage.getItem('user');
+      const u = stored ? JSON.parse(stored) : null;
+      if (u) {
+        const img = localStorage.getItem(`avatar_${u.id || u.email}`);
+        setAvatarUrl(img);
+      }
+    };
+    load();
+    window.addEventListener('storage', load);
+    return () => window.removeEventListener('storage', load);
+  }, []);
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -52,28 +69,8 @@ const Header: React.FC<HeaderProps> = ({ onSearch, user, onLogout }) => {
       elevation={0}
     >
       <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', height: 70 }}>
-        {/* Logo and Title */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box
-            sx={{
-              width: 40,
-              height: 40,
-              background: 'linear-gradient(135deg, #1a73e8 0%, #7c3aed 100%)',
-              borderRadius: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 'bold',
-              fontSize: '1.2rem',
-            }}
-          >
-            SL
-          </Box>
-          <Typography variant="h6" sx={{ fontWeight: 700, color: '#111827' }}>
-            SmartLab
-          </Typography>
-        </Box>
+        {/* Logo placeholder for spacing */}
+        <Box />
 
         {/* Search Bar */}
         <Box sx={{ flex: 1, maxWidth: 400, mx: 2 }}>
@@ -109,14 +106,15 @@ const Header: React.FC<HeaderProps> = ({ onSearch, user, onLogout }) => {
 
           <IconButton onClick={handleMenu} sx={{ ml: 1 }}>
             <Avatar
+              src={avatarUrl || undefined}
               sx={{
                 width: 40,
                 height: 40,
-                background: 'linear-gradient(135deg, #1a73e8 0%, #7c3aed 100%)',
+                background: 'linear-gradient(135deg, #003063 0%, #00B5DF 100%)',
                 cursor: 'pointer',
               }}
             >
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
+              {!avatarUrl && (user?.name?.charAt(0).toUpperCase() || 'U')}
             </Avatar>
           </IconButton>
 
@@ -136,19 +134,25 @@ const Header: React.FC<HeaderProps> = ({ onSearch, user, onLogout }) => {
                   {user?.email}
                 </Typography>
                 <Chip
-                  label={user?.role === 'admin' ? '👨‍💼 Admin' : user?.role}
+                  label={user?.role === 'admin' ? 'Admin' : user?.role}
                   size="small"
                   sx={{
                     width: 'fit-content',
                     mt: 0.5,
-                    backgroundColor: user?.role === 'admin' ? '#ef4444' : '#dbeafe',
-                    color: user?.role === 'admin' ? 'white' : '#1e40af',
+                    backgroundColor:
+                      user?.role === 'admin' ? '#ef4444' :
+                      user?.role === 'technician' ? '#FEF3C7' :
+                      '#dbeafe',
+                    color:
+                      user?.role === 'admin' ? 'white' :
+                      user?.role === 'technician' ? '#D97706' :
+                      '#1e40af',
                     fontWeight: 600
                   }}
                 />
               </Box>
             </MenuItem>
-            <MenuItem onClick={handleClose} sx={{ gap: 1 }}>
+            <MenuItem onClick={() => { navigate('/profile'); handleClose(); }} sx={{ gap: 1 }}>
               <PersonIcon fontSize="small" />
               Profile
             </MenuItem>

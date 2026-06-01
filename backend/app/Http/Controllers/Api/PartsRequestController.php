@@ -126,6 +126,7 @@ class PartsRequestController extends Controller
             ['quantity' => 0]
         );
         $inventory->increment('quantity', $partsRequest->quantity);
+        $inventory->refresh();
 
         $this->notifications->notifyUser(
             $partsRequest->technician_id,
@@ -134,6 +135,22 @@ class PartsRequestController extends Controller
             "Your parts ({$partsRequest->quantity}x {$partsRequest->part_name}) have arrived and been added to inventory.",
             ['entity_id' => $partsRequest->id, 'action_url' => '/technician/parts']
         );
+
+        // Warn if still low after restocking
+        if ($inventory->quantity < 10) {
+            $this->notifications->notifyAdmins(
+                'warning',
+                'Low Stock Alert',
+                "{$partsRequest->part_name} is still low — only {$inventory->quantity} in stock after restocking.",
+                ['action_url' => '/technician/parts']
+            );
+            $this->notifications->notifyTechnicians(
+                'warning',
+                'Low Stock Alert',
+                "{$partsRequest->part_name} is still low — only {$inventory->quantity} in stock after restocking.",
+                ['action_url' => '/technician/parts']
+            );
+        }
 
         return response()->json($this->formatRequest($partsRequest->load(['technician', 'approvedBy'])));
     }

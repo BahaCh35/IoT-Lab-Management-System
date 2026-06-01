@@ -52,6 +52,9 @@ interface EquipmentFormData {
   description: string;
   category: Equipment['category'];
   status: Equipment['status'];
+  quantity: number;
+  maintenanceCount: number;
+  damagedCount: number;
   building: string;
   room: string;
   cabinet: string;
@@ -64,6 +67,9 @@ const emptyForm = (): EquipmentFormData => ({
   description: '',
   category: 'microcontroller',
   status: 'available',
+  quantity: 1,
+  maintenanceCount: 0,
+  damagedCount: 0,
   building: '',
   room: '',
   cabinet: '',
@@ -152,6 +158,9 @@ const AdminEquipmentPage: React.FC = () => {
       description: item.description || '',
       category: item.category,
       status: item.status,
+      quantity: item.quantity ?? 1,
+      maintenanceCount: item.maintenanceCount ?? 0,
+      damagedCount: item.damagedCount ?? 0,
       building: item.location?.building || '',
       room: item.location?.room || '',
       cabinet: item.location?.cabinet || '',
@@ -182,6 +191,9 @@ const AdminEquipmentPage: React.FC = () => {
         description: form.description.trim() || undefined,
         category: form.category,
         status: form.status,
+        quantity: form.quantity,
+        maintenance_count: form.maintenanceCount,
+        damaged_count: form.damagedCount,
         building: form.building.trim() || undefined,
         room: form.room.trim() || undefined,
         cabinet: form.cabinet.trim() || undefined,
@@ -401,11 +413,9 @@ const AdminEquipmentPage: React.FC = () => {
                     </Typography>
                   </Box>
 
-                  {item.qrCode && (
-                    <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 500 }}>
-                      QR: {item.qrCode}
-                    </Typography>
-                  )}
+                  <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 500 }}>
+                    {item.availableCount ?? item.quantity ?? 1}/{item.quantity ?? 1} Available
+                  </Typography>
                 </CardContent>
               </Card>
             ))}
@@ -455,45 +465,57 @@ const AdminEquipmentPage: React.FC = () => {
               disabled={saving}
             />
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <FormControl fullWidth>
-                <InputLabel>Category</InputLabel>
-                <Select
-                  value={form.category}
-                  label="Category"
-                  onChange={(e) => setForm({ ...form, category: e.target.value as Equipment['category'] })}
-                  disabled={saving}
-                  error={!!formErrors.category}
-                >
-                  {CATEGORIES.map((cat) => (
-                    <MenuItem key={cat} value={cat}>
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {formErrors.category && (
-                  <Typography variant="caption" sx={{ color: '#ef4444', ml: 2, mt: 0.5 }}>
-                    {formErrors.category}
-                  </Typography>
-                )}
-              </FormControl>
-
-              <FormControl fullWidth>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={form.status}
-                  label="Status"
-                  onChange={(e) => setForm({ ...form, status: e.target.value as Equipment['status'] })}
-                  disabled={saving}
-                >
-                  {STATUSES.map((s) => (
-                    <MenuItem key={s} value={s}>
-                      {STATUS_LABELS[s]}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
+              <TextField
+                label="Total Quantity"
+                type="number"
+                fullWidth
+                value={form.quantity}
+                onChange={(e) => setForm({ ...form, quantity: Math.max(1, parseInt(e.target.value) || 1) })}
+                inputProps={{ min: 1 }}
+                disabled={saving}
+              />
+              <TextField
+                label="In Maintenance"
+                type="number"
+                fullWidth
+                value={form.maintenanceCount}
+                onChange={(e) => setForm({ ...form, maintenanceCount: Math.max(0, parseInt(e.target.value) || 0) })}
+                inputProps={{ min: 0 }}
+                disabled={saving}
+              />
+              <TextField
+                label="Damaged"
+                type="number"
+                fullWidth
+                value={form.damagedCount}
+                onChange={(e) => setForm({ ...form, damagedCount: Math.max(0, parseInt(e.target.value) || 0) })}
+                inputProps={{ min: 0 }}
+                disabled={saving}
+              />
             </Box>
+
+            <FormControl fullWidth>
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={form.category}
+                label="Category"
+                onChange={(e) => setForm({ ...form, category: e.target.value as Equipment['category'] })}
+                disabled={saving}
+                error={!!formErrors.category}
+              >
+                {CATEGORIES.map((cat) => (
+                  <MenuItem key={cat} value={cat}>
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </MenuItem>
+                ))}
+              </Select>
+              {formErrors.category && (
+                <Typography variant="caption" sx={{ color: '#ef4444', ml: 2, mt: 0.5 }}>
+                  {formErrors.category}
+                </Typography>
+              )}
+            </FormControl>
 
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mt: 1, mb: -1, color: '#374151' }}>
               Location Details

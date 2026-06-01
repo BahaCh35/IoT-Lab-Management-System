@@ -56,6 +56,7 @@ type ItemActionState = 'none' | 'reserved' | 'approved' | 'checked-out';
 interface EquipmentItem {
   id: string;
   name: string;
+  description?: string;
   category: string;
   status: string;
   location: string;
@@ -78,17 +79,16 @@ const actionBtnSx = {
 interface CheckoutDialogProps {
   open: boolean;
   equipment?: EquipmentItem;
+  approvedQty: number;
   onClose: () => void;
-  onConfirm: (qty: number, returnDate: string) => void;
+  onConfirm: (returnDate: string) => void;
 }
 
-const CheckoutDialog: React.FC<CheckoutDialogProps> = ({ open, equipment, onClose, onConfirm }) => {
-  const [qty, setQty] = useState(1);
+const CheckoutDialog: React.FC<CheckoutDialogProps> = ({ open, equipment, approvedQty, onClose, onConfirm }) => {
   const [returnDate, setReturnDate] = useState('');
   const today = new Date().toISOString().split('T')[0];
-  const max = equipment?.availableUnits ?? 1;
 
-  const handleClose = () => { onClose(); setQty(1); setReturnDate(''); };
+  const handleClose = () => { onClose(); setReturnDate(''); };
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
@@ -97,15 +97,9 @@ const CheckoutDialog: React.FC<CheckoutDialogProps> = ({ open, equipment, onClos
         <Typography variant="body2" sx={{ color: '#374151' }}>
           Item: <strong>{equipment?.name}</strong>
         </Typography>
-        <TextField
-          label="Quantity"
-          type="number"
-          fullWidth
-          value={qty}
-          onChange={(e) => setQty(Math.min(max, Math.max(1, Number(e.target.value))))}
-          inputProps={{ min: 1, max }}
-          helperText={`Max available: ${max}`}
-        />
+        <Typography variant="body2" sx={{ color: '#374151' }}>
+          Approved Quantity: <strong>{approvedQty}</strong>
+        </Typography>
         <TextField
           label="Return By"
           type="date"
@@ -122,7 +116,7 @@ const CheckoutDialog: React.FC<CheckoutDialogProps> = ({ open, equipment, onClos
         <Button
           variant="contained"
           disabled={!returnDate}
-          onClick={() => { onConfirm(qty, returnDate); setQty(1); setReturnDate(''); }}
+          onClick={() => { onConfirm(returnDate); setReturnDate(''); }}
           sx={{ backgroundColor: '#1a73e8', '&:hover': { backgroundColor: '#1557b0' } }}
         >
           Check Out
@@ -330,6 +324,9 @@ const EquipmentCatalogPage: React.FC = () => {
   const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [reserveDialogOpen, setReserveDialogOpen] = useState(false);
   const [actionTarget, setActionTarget] = useState<EquipmentItem | undefined>();
+  const [approvedQuantities, setApprovedQuantities] = useState<Record<string, number>>({});
+  const [approvalIds, setApprovalIds] = useState<Record<string, string>>({});
+  const [activeCheckoutIds, setActiveCheckoutIds] = useState<Record<string, string>>({});
   const [snackOpen, setSnackOpen] = useState(false);
   const [snackMsg, setSnackMsg] = useState('');
 
@@ -347,12 +344,13 @@ const EquipmentCatalogPage: React.FC = () => {
         return {
           id: String(item.id),
           name: item.name,
+          description: item.description || '',
           category: item.category,
           status: item.status,
           location: locationString,
           specifications: item.specifications || {},
-          totalUnits: 1, // Fallback defaults until backend supports multi-unit
-          availableUnits: item.status === 'available' ? 1 : 0,
+          totalUnits: item.quantity ?? 1,
+          availableUnits: item.availableCount ?? (item.status === 'available' ? 1 : 0),
           lastUsedBy: item.lastUsedBy,
           lastUsedDate: item.lastUsedDate,
           rating: 5, // Fallback default
@@ -373,12 +371,16 @@ const EquipmentCatalogPage: React.FC = () => {
         const userId = userStr ? JSON.parse(userStr)?.id : null;
         if (userId) {
           const approvals = await approvalService.getApprovalsByType('equipment-reservation');
+          const newApprovedQtys: Record<string, number> = {};
+          const newApprovalIds: Record<string, string> = {};
           approvals.forEach((approval: any) => {
             if (String(approval.requester?.id) === String(userId)) {
               const equipId = String((approval.details as any)?.equipmentId);
               if (!computedStates[equipId]) {
                 if (approval.status === 'approved') {
                   computedStates[equipId] = 'approved';
+                  newApprovedQtys[equipId] = (approval.details as any)?.quantity ?? 1;
+                  newApprovalIds[equipId] = approval.id;
                 } else if (approval.status === 'pending') {
                   computedStates[equipId] = 'reserved';
                 }
@@ -386,6 +388,23 @@ const EquipmentCatalogPage: React.FC = () => {
               }
             }
           });
+          setApprovedQuantities(newApprovedQtys);
+          setApprovalIds(newApprovalIds);
+
+          // Detect active checkouts from backend to get checkout IDs for return
+          try {
+            const activeCheckouts = await checkoutService.getUserActiveCheckouts(String(userId));
+            const newCheckoutIds: Record<string, string> = {};
+            activeCheckouts.forEach((c: any) => {
+              newCheckoutIds[String(c.equipmentId)] = String(c.id);
+              if (!computedStates[String(c.equipmentId)]) {
+                computedStates[String(c.equipmentId)] = 'checked-out';
+              }
+            });
+            setActiveCheckoutIds(newCheckoutIds);
+          } catch {
+            // ignore if checkout fetch fails
+          }
         }
       } catch {
         // ignore if approval fetch fails
@@ -434,8 +453,9 @@ const EquipmentCatalogPage: React.FC = () => {
     setReserveDialogOpen(true);
   };
 
-  const handleCheckoutConfirm = async (qty: number, returnDate: string) => {
+  const handleCheckoutConfirm = async (returnDate: string) => {
     if (!actionTarget) return;
+    const qty = approvedQuantities[actionTarget.id] ?? 1;
     try {
       const userStr = sessionStorage.getItem('user');
       const currentUser = userStr ? JSON.parse(userStr) : null;
@@ -446,6 +466,7 @@ const EquipmentCatalogPage: React.FC = () => {
             String(currentUser.id),
             currentUser.name,
             returnDate,
+            qty,
           );
         } catch {
           // Backend unavailable — proceed with local-only checkout
@@ -453,6 +474,12 @@ const EquipmentCatalogPage: React.FC = () => {
       }
       checkoutStore.addItem(actionTarget.id, actionTarget.name, qty, returnDate);
       setItemState(actionTarget.id, 'checked-out');
+      // Mark approval as completed so it doesn't re-appear as "Check Out" on refresh
+      const approvalId = approvalIds[actionTarget.id];
+      if (approvalId) {
+        await approvalService.completeApproval(approvalId);
+        setApprovalIds((prev) => { const next = { ...prev }; delete next[actionTarget.id]; return next; });
+      }
       const label = new Date(returnDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       setSnackMsg(`Checked out ${qty}× ${actionTarget.name} — return by ${label}`);
       setSnackOpen(true);
@@ -486,9 +513,24 @@ const EquipmentCatalogPage: React.FC = () => {
     }
   };
 
-  const handleReturn = (id: string) => {
+  const handleReturn = async (id: string) => {
+    const checkoutId = activeCheckoutIds[id];
+    const approvalId = approvalIds[id];
+    try {
+      if (checkoutId) {
+        await checkoutService.checkInEquipment(checkoutId);
+      }
+    } catch {
+      // ignore backend errors — still clear local state
+    }
+    if (approvalId) {
+      await approvalService.completeApproval(approvalId);
+    }
     checkoutStore.removeByEquipmentId(id);
     setItemState(id, 'none');
+    setActiveCheckoutIds((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    setApprovalIds((prev) => { const next = { ...prev }; delete next[id]; return next; });
+    fetchEquipment();
   };
 
   // Report dialog
@@ -554,23 +596,22 @@ const EquipmentCatalogPage: React.FC = () => {
         const checkedOut = equipmentList.filter((e: EquipmentItem) => e.status === 'checked-out').length;
         const inMaintenance = equipmentList.filter((e: EquipmentItem) => e.status === 'maintenance').length;
         const stats = [
-          { label: 'Total Equipment', value: totalUnits, icon: <InventoryIcon sx={{ fontSize: 26 }} />, bg: '#e8f0fe', color: '#1a73e8' },
-          { label: 'Available Units', value: availableUnits, icon: <CheckCircleIcon sx={{ fontSize: 26 }} />, bg: '#e8f5e9', color: '#10b981' },
-          { label: 'Checked Out', value: checkedOut, icon: <BuildIcon sx={{ fontSize: 26 }} />, bg: '#dbeafe', color: '#3b82f6' },
-          { label: 'In Maintenance', value: inMaintenance, icon: <WarningIcon sx={{ fontSize: 26 }} />, bg: '#fef3c7', color: '#f59e0b' },
+          { label: 'Total Equipment', value: totalUnits, bg: '#f0f4ff', color: '#1a73e8' },
+          { label: 'Available Units', value: availableUnits, bg: '#e8f5e9', color: '#10b981' },
+          { label: 'Checked Out', value: checkedOut, bg: '#dbeafe', color: '#3b82f6' },
+          { label: 'In Maintenance', value: inMaintenance, bg: '#fff3e0', color: '#f59e0b' },
         ];
         return (
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
+          <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
             {stats.map((s) => (
-              <Card key={s.label} sx={{ border: `1px solid ${s.color}22` }}>
-                <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, py: '14px !important' }}>
-                  <Box sx={{ width: 48, height: 48, borderRadius: 2, backgroundColor: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color, flexShrink: 0 }}>
-                    {s.icon}
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 600, display: 'block' }}>{s.label}</Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: s.color, lineHeight: 1.2 }}>{s.value}</Typography>
-                  </Box>
+              <Card key={s.label} sx={{ backgroundColor: s.bg, minWidth: 150, flex: 1 }}>
+                <CardContent>
+                  <Typography variant="caption" sx={{ color: '#6b7280', textTransform: 'uppercase', fontWeight: 600 }}>
+                    {s.label}
+                  </Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700, color: s.color, mt: 0.5 }}>
+                    {s.value}
+                  </Typography>
                 </CardContent>
               </Card>
             ))}
@@ -624,7 +665,7 @@ const EquipmentCatalogPage: React.FC = () => {
       ) : (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3 }}>
           {filteredEquipment.map((equipment: EquipmentItem) => {
-            const canAct = equipment.status === 'available' && equipment.availableUnits > 0;
+            const canAct = equipment.availableUnits > 0 && !['maintenance', 'damaged'].includes(equipment.status);
             const state = itemStates[equipment.id] || 'none';
             return (
               <Card
@@ -635,7 +676,8 @@ const EquipmentCatalogPage: React.FC = () => {
                   flexDirection: 'column',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
-                  '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 12px 24px rgba(0,0,0,0.12)' },
+                  border: `1px solid ${STATUS_COLORS[equipment.status]}44`,
+                  '&:hover': { transform: 'translateY(-4px)', boxShadow: `0 12px 24px ${STATUS_COLORS[equipment.status]}33` },
                 }}
                 onClick={() => handleEquipmentClick(equipment)}
               >
@@ -649,11 +691,25 @@ const EquipmentCatalogPage: React.FC = () => {
                     : <ErrorIcon sx={{ color: STATUS_COLORS[equipment.status], fontSize: 20 }} />}
                 </Box>
 
-                <Chip
-                  label={STATUS_LABELS[equipment.status]}
-                  size="small"
-                  sx={{ backgroundColor: STATUS_COLORS[equipment.status], color: 'white', mb: 2 }}
-                />
+                {equipment.description && (
+                  <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>
+                    {equipment.description}
+                  </Typography>
+                )}
+
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1.5 }}>
+                  <Chip
+                    label={STATUS_LABELS[equipment.status]}
+                    size="small"
+                    sx={{ backgroundColor: STATUS_COLORS[equipment.status], color: 'white' }}
+                  />
+                  <Chip
+                    label={equipment.category.charAt(0).toUpperCase() + equipment.category.slice(1)}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: 11 }}
+                  />
+                </Box>
 
                 <Box sx={{ mb: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
@@ -748,6 +804,7 @@ const EquipmentCatalogPage: React.FC = () => {
       <CheckoutDialog
         open={checkoutDialogOpen}
         equipment={actionTarget}
+        approvedQty={actionTarget ? (approvedQuantities[actionTarget.id] ?? 1) : 1}
         onClose={() => setCheckoutDialogOpen(false)}
         onConfirm={handleCheckoutConfirm}
       />

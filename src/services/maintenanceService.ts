@@ -52,9 +52,9 @@ export const maintenanceService = {
     }
   },
 
-  async updateRequestNotes(id: string, notes: string): Promise<MaintenanceRequest | undefined> {
+  async updateRequestNotes(id: string, notes: string, partsUsed?: string[]): Promise<MaintenanceRequest | undefined> {
     try {
-      return await apiMaintenanceService.updateRequestNotes(id, notes);
+      return await apiMaintenanceService.updateRequestNotes(id, notes, partsUsed);
     } catch {
       return undefined;
     }

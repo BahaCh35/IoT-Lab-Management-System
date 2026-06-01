@@ -10,7 +10,7 @@ class Checkout extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'id', 'equipment_id', 'user_id', 'user_name', 'checkout_date',
+        'id', 'equipment_id', 'user_id', 'user_name', 'quantity', 'checkout_date',
         'expected_return_date', 'actual_return_date', 'status', 'notes'
     ];
 

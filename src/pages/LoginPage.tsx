@@ -17,6 +17,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { authService } from '../services/api';
 import { User } from '../types';
+import logo from '../assets/logo.png';
 
 const LoginPage: React.FC<{ onLogin?: (user: User) => void }> = ({ onLogin }) => {
   const navigate = useNavigate();
@@ -70,7 +71,7 @@ const LoginPage: React.FC<{ onLogin?: (user: User) => void }> = ({ onLogin }) =>
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #003063 0%, #00B5DF 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -87,33 +88,14 @@ const LoginPage: React.FC<{ onLogin?: (user: User) => void }> = ({ onLogin }) =>
         >
           {/* Logo */}
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-            <Box
-              sx={{
-                width: 60,
-                height: 60,
-                background: 'linear-gradient(135deg, #1a73e8 0%, #7c3aed 100%)',
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 'bold',
-                fontSize: '1.8rem',
-              }}
-            >
-              SL
-            </Box>
+            <img src={logo} alt="SmartLab" style={{ height: 120, width: 'auto', maxWidth: '100%' }} />
           </Box>
 
-          {/* Title */}
-          <Typography variant="h4" sx={{ textAlign: 'center', mb: 1, fontWeight: 700 }}>
-            SmartLab
-          </Typography>
           <Typography
             variant="body2"
             sx={{ textAlign: 'center', color: '#6b7280', mb: 3 }}
           >
-            AI-Powered Laboratory Management Platform
+            Laboratory Management Platform
           </Typography>
 
           {/* Error Alert */}

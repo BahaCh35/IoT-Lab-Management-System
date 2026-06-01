@@ -175,6 +175,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/approvals', [ApprovalController::class, 'store']);
     Route::put('/approvals/{id}/approve', [ApprovalController::class, 'approve']);
     Route::put('/approvals/{id}/reject', [ApprovalController::class, 'reject']);
+    Route::put('/approvals/{id}/complete', [ApprovalController::class, 'complete']);
 
     // Activity Log
     Route::get('/activity-log', [ActivityLogController::class, 'index']);

@@ -10,6 +10,33 @@ import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, T
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, ChartTooltip, ChartLegend);
 
+// Custom plugin: draw percentage labels directly on each doughnut/pie slice
+const percentageLabelPlugin = {
+  id: 'percentageLabels',
+  afterDatasetsDraw(chart: any) {
+    const { ctx } = chart;
+    chart.data.datasets.forEach((_: any, datasetIndex: number) => {
+      const meta = chart.getDatasetMeta(datasetIndex);
+      const data = chart.data.datasets[datasetIndex].data as number[];
+      const total = data.reduce((sum: number, v: number) => sum + (v || 0), 0);
+      if (total === 0) return;
+      meta.data.forEach((arc: any, index: number) => {
+        const value = data[index] || 0;
+        if (value === 0) return;
+        const pct = ((value / total) * 100).toFixed(1) + '%';
+        const center = arc.getCenterPoint();
+        ctx.save();
+        ctx.font = 'bold 13px Arial';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(pct, center.x, center.y);
+        ctx.restore();
+      });
+    });
+  },
+};
+
 const AdminAnalyticsPage: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
 
@@ -38,20 +65,22 @@ const AdminAnalyticsPage: React.FC = () => {
     return <Typography>Loading...</Typography>;
   }
 
+  const allTypes = [
+    { label: 'Equipment',    key: 'equipment-purchase',    color: '#93c5fd' },
+    { label: 'Products',     key: 'product-modification',  color: '#a5b4fc' },
+    { label: 'Checkout',     key: 'checkout-request',      color: '#f9a8d4' },
+    { label: 'Reservation',  key: 'reservation-request',   color: '#fcd34d' },
+    { label: 'Meeting',      key: 'meeting-room-booking',  color: '#6ee7b7' },
+    { label: 'Lab',          key: 'lab-reservation',       color: '#67e8f9' },
+    { label: 'Storage',      key: 'storage-addition',      color: '#c4b5fd' },
+  ];
+  const activeTypes = allTypes.filter((t) => (stats.approvals.byType[t.key] ?? 0) > 0);
   const approvalByTypeData = {
-    labels: ['Equipment', 'Products', 'Checkout', 'Reservation', 'Meeting', 'Lab', 'Storage'],
+    labels: activeTypes.length > 0 ? activeTypes.map((t) => t.label) : ['No Data'],
     datasets: [
       {
-        data: [
-          stats.approvals.byType['equipment-purchase'],
-          stats.approvals.byType['product-modification'],
-          stats.approvals.byType['checkout-request'],
-          stats.approvals.byType['reservation-request'],
-          stats.approvals.byType['meeting-room-booking'],
-          stats.approvals.byType['lab-reservation'],
-          stats.approvals.byType['storage-addition'],
-        ],
-        backgroundColor: ['#93c5fd', '#a5b4fc', '#f9a8d4', '#fcd34d', '#6ee7b7', '#67e8f9', '#c4b5fd'],
+        data: activeTypes.length > 0 ? activeTypes.map((t) => stats.approvals.byType[t.key] ?? 0) : [1],
+        backgroundColor: activeTypes.length > 0 ? activeTypes.map((t) => t.color) : ['#e5e7eb'],
         borderColor: '#fff',
         borderWidth: 2,
       },
@@ -70,14 +99,26 @@ const AdminAnalyticsPage: React.FC = () => {
     ],
   };
 
+  const usersByRoleData = {
+    labels: ['Admin', 'Technician', 'Engineer'],
+    datasets: [
+      {
+        label: 'Users by Role',
+        data: [stats.users.admins, stats.users.technicians, stats.users.engineers],
+        backgroundColor: ['#fca5a5', '#c4b5fd', '#93c5fd'],
+        borderColor:     ['#fca5a5', '#c4b5fd', '#93c5fd'],
+      },
+    ],
+  };
+
   const usersByDepartmentData = {
     labels: Object.keys(stats.users.byDepartment),
     datasets: [
       {
         label: 'Users by Department',
         data: Object.values(stats.users.byDepartment),
-        backgroundColor: '#60a5fa',
-        borderColor: '#60a5fa',
+        backgroundColor: ['#6ee7b7', '#fde68a', '#a5b4fc', '#fca5a5'],
+        borderColor:     ['#6ee7b7', '#fde68a', '#a5b4fc', '#fca5a5'],
       },
     ],
   };
@@ -158,7 +199,28 @@ const AdminAnalyticsPage: React.FC = () => {
               Approval Status Distribution
             </Typography>
             <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Doughnut data={approvalStatusData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }} />
+              <Doughnut
+                data={approvalStatusData}
+                plugins={[percentageLabelPlugin]}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                      callbacks: {
+                        label: (ctx) => {
+                          const data = ctx.dataset.data as number[];
+                          const total = data.reduce((a, b) => a + (b || 0), 0);
+                          const value = ctx.parsed;
+                          const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                          return ` ${ctx.label}: ${value} (${pct}%)`;
+                        },
+                      },
+                    },
+                  },
+                }}
+              />
             </Box>
           </CardContent>
         </Card>
@@ -169,11 +231,53 @@ const AdminAnalyticsPage: React.FC = () => {
               Approvals by Type
             </Typography>
             <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Doughnut data={approvalByTypeData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }} />
+              <Doughnut
+                data={approvalByTypeData}
+                plugins={[percentageLabelPlugin]}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                      callbacks: {
+                        label: (ctx) => {
+                          const data = ctx.dataset.data as number[];
+                          const total = data.reduce((a, b) => a + (b || 0), 0);
+                          const value = ctx.parsed;
+                          const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                          return ` ${ctx.label}: ${value} (${pct}%)`;
+                        },
+                      },
+                    },
+                  },
+                }}
+              />
             </Box>
           </CardContent>
         </Card>
       </Box>
+
+      {/* Users by Role */}
+      <Card sx={{ mb: 4 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+            Users by Role
+          </Typography>
+          <Box sx={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Bar
+              data={usersByRoleData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y' as const,
+                plugins: { legend: { display: false } },
+                scales: { x: { ticks: { stepSize: 1 }, beginAtZero: true } },
+              }}
+            />
+          </Box>
+        </CardContent>
+      </Card>
 
       {/* Users by Department */}
       <Card sx={{ mb: 4 }}>

@@ -12,7 +12,8 @@ class Equipment extends Model
 
     protected $fillable = [
         'id', 'name', 'description', 'category', 'status', 'qr_code',
-        'specifications', 'acquisition_date', 'usage_count', 'last_used_by',
+        'specifications', 'acquisition_date', 'usage_count', 'quantity',
+        'maintenance_count', 'damaged_count', 'last_used_by',
         'last_used_date', 'image_url', 'building', 'room', 'cabinet', 'drawer', 'shelf'
     ];
 
@@ -20,6 +21,9 @@ class Equipment extends Model
         'specifications' => 'array',
         'acquisition_date' => 'date',
         'last_used_date' => 'datetime',
+        'quantity' => 'integer',
+        'maintenance_count' => 'integer',
+        'damaged_count' => 'integer',
     ];
 
     public function getLocationAttribute()

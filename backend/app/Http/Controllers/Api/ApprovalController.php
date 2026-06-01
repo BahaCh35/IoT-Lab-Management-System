@@ -225,6 +225,27 @@ class ApprovalController extends Controller
         return response()->json($this->formatApproval($approval->load(['requester', 'reviewedBy'])));
     }
 
+    public function complete($id, Request $request)
+    {
+        $approval = ApprovalRequest::findOrFail($id);
+
+        if (!in_array($approval->status, ['approved'])) {
+            return response()->json(['message' => 'Only approved requests can be marked complete'], 400);
+        }
+
+        $approval->update(['status' => 'completed']);
+
+        ActivityLog::create([
+            'user_id' => $request->user()->id ?? $approval->requester_id,
+            'action' => 'completed',
+            'entity_type' => 'approval',
+            'entity_id' => $id,
+            'details' => ['type' => $approval->type],
+        ]);
+
+        return response()->json($this->formatApproval($approval->load(['requester', 'reviewedBy'])));
+    }
+
     public function pendingCount()
     {
         return response()->json(['count' => ApprovalRequest::where('status', 'pending')->count()]);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Card, CardContent, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Paper } from '@mui/material';
+import { Box, Card, CardContent, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Paper, MenuItem } from '@mui/material';
 import PeopleIcon from '@mui/icons-material/People';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -14,10 +14,12 @@ const UserManagementPage: React.FC = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     department: '',
     phone: '',
+    role: 'engineer' as 'admin' | 'engineer' | 'technician',
   });
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [stats, setStats] = useState({
@@ -56,17 +58,20 @@ const UserManagementPage: React.FC = () => {
 
   const handleAddClick = () => {
     setEditingUser(null);
-    setFormData({ name: '', email: '', department: '', phone: '' });
+    setFormData({ firstName: '', lastName: '', email: '', department: '', phone: '', role: 'engineer' });
     setOpenDialog(true);
   };
 
   const handleEditClick = (user: UserProfile) => {
     setEditingUser(user);
+    const parts = user.name.trim().split(' ');
     setFormData({
-      name: user.name,
+      firstName: parts[0] ?? '',
+      lastName: parts.slice(1).join(' '),
       email: user.email,
       department: user.department,
       phone: user.phone || '',
+      role: (user.role === 'admin' || user.role === 'engineer' || user.role === 'technician') ? user.role : 'engineer',
     });
     setOpenDialog(true);
   };
@@ -75,10 +80,11 @@ const UserManagementPage: React.FC = () => {
     setLoading(true);
     try {
       const userData = {
-        name: formData.name,
+        name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
         email: formData.email,
         department: formData.department,
         phone: formData.phone,
+        role: formData.role,
       };
 
       if (editingUser) {
@@ -109,6 +115,11 @@ const UserManagementPage: React.FC = () => {
       console.error('Error toggling user status:', error);
       alert('Failed to update user status. Please try again.');
     }
+  };
+
+  const handleDeleteClick = (user: UserProfile) => {
+    setEditingUser(user);
+    setDeleteConfirmOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
@@ -164,16 +175,6 @@ const UserManagementPage: React.FC = () => {
             </Typography>
           </CardContent>
         </Card>
-        <Card sx={{ backgroundColor: '#fff3e0' }}>
-          <CardContent>
-            <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 600 }}>
-              Engineers
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 700, color: '#f59e0b', mt: 1 }}>
-              {stats.engineers}
-            </Typography>
-          </CardContent>
-        </Card>
         <Card sx={{ backgroundColor: '#ffebee' }}>
           <CardContent>
             <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 600 }}>
@@ -184,12 +185,22 @@ const UserManagementPage: React.FC = () => {
             </Typography>
           </CardContent>
         </Card>
-        <Card sx={{ backgroundColor: '#f3e8ff' }}>
+        <Card sx={{ backgroundColor: '#dbeafe' }}>
+          <CardContent>
+            <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 600 }}>
+              Engineers
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 700, color: '#1d4ed8', mt: 1 }}>
+              {stats.engineers}
+            </Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ backgroundColor: '#fff3e0' }}>
           <CardContent>
             <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 600 }}>
               Technicians
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 700, color: '#8b5cf6', mt: 1 }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, color: '#f59e0b', mt: 1 }}>
               {stats.technicians}
             </Typography>
           </CardContent>
@@ -204,10 +215,11 @@ const UserManagementPage: React.FC = () => {
                 <TableRow sx={{ backgroundColor: '#f3f4f6' }}>
                   <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Email</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Department</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Role</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Department</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Phone</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }} align="right">
+                  <TableCell sx={{ fontWeight: 600 }}>
                     Actions
                   </TableCell>
                 </TableRow>
@@ -221,19 +233,33 @@ const UserManagementPage: React.FC = () => {
                       </Typography>
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.department}</TableCell>
                     <TableCell>
-                      <Chip label={user.role} size="small" sx={{ backgroundColor: user.role === 'admin' ? '#ef4444' : '#dbeafe', color: user.role === 'admin' ? 'white' : '#1e40af' }} />
+                      <Chip label={user.role} size="small" sx={{
+                        backgroundColor:
+                          user.role === 'admin' ? '#ef4444' :
+                          user.role === 'technician' ? '#FEF3C7' :
+                          '#dbeafe',
+                        color:
+                          user.role === 'admin' ? 'white' :
+                          user.role === 'technician' ? '#D97706' :
+                          '#1e40af',
+                        fontWeight: 600,
+                      }} />
                     </TableCell>
+                    <TableCell>{user.department}</TableCell>
+                    <TableCell>{user.phone || '—'}</TableCell>
                     <TableCell>
                       <Chip label={user.isActive ? 'Active' : 'Inactive'} size="small" sx={{ backgroundColor: user.isActive ? '#e8f5e9' : '#ffebee', color: user.isActive ? '#10b981' : '#ef4444' }} />
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell>
                       <Button size="small" startIcon={<EditIcon />} onClick={() => handleEditClick(user)} sx={{ mr: 1 }}>
                         Edit
                       </Button>
-                      <Button size="small" startIcon={user.isActive ? <ToggleOnIcon /> : <ToggleOffIcon />} onClick={() => handleToggleStatus(user.id, user.isActive)}>
+                      <Button size="small" startIcon={user.isActive ? <ToggleOnIcon /> : <ToggleOffIcon />} onClick={() => handleToggleStatus(user.id, user.isActive)} sx={{ mr: 1 }}>
                         {user.isActive ? 'Deactivate' : 'Activate'}
+                      </Button>
+                      <Button size="small" startIcon={<DeleteIcon />} onClick={() => handleDeleteClick(user)} sx={{ color: '#ef4444' }}>
+                        Delete
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -247,8 +273,22 @@ const UserManagementPage: React.FC = () => {
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editingUser ? 'Edit User' : 'Add User'}</DialogTitle>
         <DialogContent sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <TextField label="Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} fullWidth />
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <TextField label="First Name" value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} fullWidth />
+            <TextField label="Last Name" value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} fullWidth />
+          </Box>
           <TextField label="Email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} fullWidth />
+          <TextField
+            label="Role"
+            select
+            value={formData.role}
+            onChange={(e) => setFormData({ ...formData, role: e.target.value as 'admin' | 'engineer' | 'technician' })}
+            fullWidth
+          >
+            <MenuItem value="admin">Admin</MenuItem>
+            <MenuItem value="engineer">Engineer</MenuItem>
+            <MenuItem value="technician">Technician</MenuItem>
+          </TextField>
           <TextField label="Department" value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} fullWidth />
           <TextField label="Phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} fullWidth />
         </DialogContent>

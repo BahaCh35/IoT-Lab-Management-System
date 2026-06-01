@@ -42,6 +42,14 @@ class UserController extends Controller
             'permissions' => $request->permissions ?? [],
         ]);
 
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? $user->id,
+            'action' => 'create',
+            'entity_type' => 'User',
+            'entity_id' => (string) $user->id,
+            'details' => ['name' => $user->name, 'email' => $user->email, 'role' => $user->role],
+        ]);
+
         return response()->json($this->formatUser($user), 201);
     }
 
@@ -61,6 +69,14 @@ class UserController extends Controller
             $user->update(['password' => Hash::make($request->password)]);
         }
 
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? $user->id,
+            'action' => 'update',
+            'entity_type' => 'User',
+            'entity_id' => (string) $user->id,
+            'details' => ['name' => $user->name, 'email' => $user->email, 'role' => $user->role],
+        ]);
+
         return response()->json($this->formatUser($user));
     }
 
@@ -68,6 +84,13 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         $user->update(['is_active' => true]);
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? $user->id,
+            'action' => 'activate',
+            'entity_type' => 'User',
+            'entity_id' => (string) $user->id,
+            'details' => ['name' => $user->name, 'email' => $user->email],
+        ]);
         return response()->json($this->formatUser($user));
     }
 
@@ -75,12 +98,26 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         $user->update(['is_active' => false]);
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? $user->id,
+            'action' => 'deactivate',
+            'entity_type' => 'User',
+            'entity_id' => (string) $user->id,
+            'details' => ['name' => $user->name, 'email' => $user->email],
+        ]);
         return response()->json($this->formatUser($user));
     }
 
     public function destroy($id)
     {
         $user = User::findOrFail($id);
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? $id,
+            'action' => 'delete',
+            'entity_type' => 'User',
+            'entity_id' => (string) $id,
+            'details' => ['name' => $user->name, 'email' => $user->email],
+        ]);
         $user->delete();
         return response()->json(['message' => 'User deleted successfully']);
     }
