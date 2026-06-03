@@ -22,6 +22,7 @@ interface NovaChatWidgetProps {
   onInputChange: (value: string) => void;
   onSendMessage: () => void;
   onQuickActionClick?: (action: string) => void;
+  onStartVoice: () => void;
 }
 
 /**
@@ -37,6 +38,7 @@ const NovaChatWidget: React.FC<NovaChatWidgetProps> = ({
   onInputChange,
   onSendMessage,
   onQuickActionClick,
+  onStartVoice,
 }) => {
   return (
     <Box
@@ -75,6 +77,7 @@ const NovaChatWidget: React.FC<NovaChatWidgetProps> = ({
         value={inputValue}
         onChange={onInputChange}
         onSend={onSendMessage}
+        onStartVoice={onStartVoice}
         disabled={isTyping}
       />
     </Box>

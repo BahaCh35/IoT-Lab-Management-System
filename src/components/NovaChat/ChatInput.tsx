@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, TextField, IconButton } from '@mui/material';
+import { Box, TextField, IconButton, Tooltip } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import MicIcon from '@mui/icons-material/Mic';
 
@@ -7,14 +7,21 @@ interface ChatInputProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
+  onStartVoice: () => void;
   disabled?: boolean;
 }
 
 /**
  * Chat Input Component
- * Text input field with send button and optional microphone button
+ * Text input field with send button and voice button.
  */
-const ChatInput: React.FC<ChatInputProps> = ({ value, onChange, onSend, disabled = false }) => {
+const ChatInput: React.FC<ChatInputProps> = ({
+  value,
+  onChange,
+  onSend,
+  onStartVoice,
+  disabled = false,
+}) => {
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -53,11 +60,11 @@ const ChatInput: React.FC<ChatInputProps> = ({ value, onChange, onSend, disabled
               borderColor: '#e5e7eb',
             },
             '&:hover fieldset': {
-              borderColor: '#667eea',
+              borderColor: '#00B5DF',
             },
             '&.Mui-focused fieldset': {
-              borderColor: '#667eea',
-              boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)',
+              borderColor: '#00B5DF',
+              boxShadow: '0 0 0 3px rgba(0, 181, 223, 0.15)',
             },
           },
           '& .MuiOutlinedInput-input': {
@@ -71,43 +78,55 @@ const ChatInput: React.FC<ChatInputProps> = ({ value, onChange, onSend, disabled
         }}
       />
 
-      {/* Microphone Button (Optional for future) */}
-      <IconButton
-        size="small"
-        disabled={disabled}
-        sx={{
-          width: 44,
-          height: 44,
-          borderRadius: '50%',
-          backgroundColor: '#f9fafb',
-          color: '#667eea',
-          border: '1px solid #e5e7eb',
-          '&:hover': {
-            backgroundColor: '#f0f4ff',
-            borderColor: '#667eea',
-          },
-          transition: 'all 0.2s ease',
-        }}
-        title="Voice input (coming soon)"
-      >
-        <MicIcon sx={{ fontSize: 20 }} />
-      </IconButton>
+      {/* Microphone Button — starts voice session */}
+      <Tooltip title="Start voice conversation" placement="top">
+        <IconButton
+          onClick={onStartVoice}
+          size="small"
+          disabled={disabled}
+          sx={{
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            background: 'none',
+            backgroundColor: '#f9fafb',
+            color: '#00B5DF',
+            border: '1px solid #e5e7eb',
+            '&:hover': {
+              background: 'none',
+              backgroundColor: '#e6f8fc',
+              borderColor: '#00B5DF',
+            },
+            '&.Mui-disabled': {
+              color: '#9ca3af',
+            },
+            transition: 'all 0.2s ease',
+          }}
+          aria-label="Start voice conversation"
+        >
+          <MicIcon sx={{ fontSize: 20 }} />
+        </IconButton>
+      </Tooltip>
 
       {/* Send Button */}
       <IconButton
         onClick={onSend}
+        size="small"
         disabled={disabled || !value.trim()}
         sx={{
           width: 44,
           height: 44,
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
+          background: 'none',
+          backgroundColor: '#f9fafb',
+          color: '#00B5DF',
+          border: '1px solid #e5e7eb',
           '&:hover': {
-            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+            background: 'none',
+            backgroundColor: '#e6f8fc',
+            borderColor: '#00B5DF',
           },
-          '&:disabled': {
-            background: 'linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)',
+          '&.Mui-disabled': {
             color: '#9ca3af',
           },
           transition: 'all 0.2s ease',

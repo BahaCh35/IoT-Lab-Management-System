@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\StorageCabinetController;
 use App\Http\Controllers\Api\StorageDrawerController;
 use App\Http\Controllers\Api\StorageItemController;
+use App\Http\Controllers\Api\ChatbotController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -193,4 +194,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Device Tokens (FCM)
     Route::post('/device-tokens', [DeviceTokenController::class, 'register']);
     Route::delete('/device-tokens', [DeviceTokenController::class, 'unregister']);
+
+    // Nova AI Chatbot
+    Route::post('/chatbot/message', [ChatbotController::class, 'sendMessage']);
 });

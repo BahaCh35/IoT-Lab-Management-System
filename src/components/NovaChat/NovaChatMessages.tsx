@@ -85,13 +85,13 @@ const NovaChatMessages: React.FC<NovaChatMessagesProps> = ({
                   onClick={() => onQuickActionClick?.(action)}
                   sx={{
                     backgroundColor: 'white',
-                    border: '1px solid #667eea',
-                    color: '#667eea',
+                    border: '1px solid #003063',
+                    color: '#003063',
                     fontWeight: 500,
                     '&:hover': {
-                      backgroundColor: '#f0f4ff',
-                      borderColor: '#764ba2',
-                      color: '#764ba2',
+                      backgroundColor: '#e6ecf3',
+                      borderColor: '#00224a',
+                      color: '#00224a',
                       cursor: 'pointer',
                     },
                     transition: 'all 0.2s ease',

@@ -6,4 +6,5 @@ export { default as NovaChatMessages } from './NovaChatMessages';
 export { default as Message } from './Message';
 export { default as ChatInput } from './ChatInput';
 export { default as TypingIndicator } from './TypingIndicator';
+export { default as VoiceSession } from './VoiceSession';
 export { getMockResponse, getResponseActions } from './mockResponses';

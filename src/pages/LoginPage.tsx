@@ -95,7 +95,7 @@ const LoginPage: React.FC<{ onLogin?: (user: User) => void }> = ({ onLogin }) =>
             variant="body2"
             sx={{ textAlign: 'center', color: '#6b7280', mb: 3 }}
           >
-            Laboratory Management Platform
+            Novation City Laboratory Management Platform
           </Typography>
 
           {/* Error Alert */}

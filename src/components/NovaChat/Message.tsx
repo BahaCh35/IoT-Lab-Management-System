@@ -35,7 +35,7 @@ const Message: React.FC<MessageProps> = ({ type, text, timestamp, actions }) => 
       >
         <Box
           sx={{
-            backgroundColor: isNova ? '#f3f4f6' : '#a8bdff',
+            backgroundColor: isNova ? '#f3f4f6' : '#00B5DF',
             padding: '12px 16px',
             borderRadius: 2,
             borderBottomLeftRadius: isNova ? 4 : 16,
@@ -50,7 +50,7 @@ const Message: React.FC<MessageProps> = ({ type, text, timestamp, actions }) => 
               fontSize: '14px',
               lineHeight: '1.5',
               fontWeight: 400,
-              color: '#111827',
+              color: isNova ? '#111827' : 'white',
             }}
           >
             {text}
