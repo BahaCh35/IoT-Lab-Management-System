@@ -8,20 +8,39 @@ use Illuminate\Support\Facades\Log;
 
 class FCMService
 {
-    private string $projectId;
-    private array $serviceAccount;
+    private ?string $projectId = null;
+    private ?array $serviceAccount = null;
+    private bool $enabled = false;
 
     public function __construct()
     {
-        $this->projectId = config('services.firebase.project_id');
-
+        $projectId = config('services.firebase.project_id');
         $credentialsPath = config('services.firebase.credentials');
 
-        if (!file_exists($credentialsPath)) {
-            throw new \RuntimeException("Firebase service account file not found at: {$credentialsPath}");
+        // Push notifications are optional. If Firebase isn't configured (e.g.
+        // local dev without FIREBASE_PROJECT_ID), skip silently instead of
+        // throwing — that would break every endpoint that DI-injects this
+        // service via NotificationService.
+        if (!$projectId || !$credentialsPath || !file_exists($credentialsPath)) {
+            Log::info('FCMService disabled: Firebase config missing', [
+                'has_project_id'   => (bool) $projectId,
+                'credentials_path' => $credentialsPath,
+                'file_exists'      => $credentialsPath ? file_exists($credentialsPath) : false,
+            ]);
+            return;
         }
 
-        $this->serviceAccount = json_decode(file_get_contents($credentialsPath), true);
+        $serviceAccount = json_decode((string) file_get_contents($credentialsPath), true);
+        if (!is_array($serviceAccount) || empty($serviceAccount['client_email']) || empty($serviceAccount['private_key'])) {
+            Log::warning('FCMService disabled: invalid service account JSON', [
+                'credentials_path' => $credentialsPath,
+            ]);
+            return;
+        }
+
+        $this->projectId = $projectId;
+        $this->serviceAccount = $serviceAccount;
+        $this->enabled = true;
     }
 
     /**
@@ -29,6 +48,11 @@ class FCMService
      */
     public function sendToToken(string $token, string $title, string $body, array $data = []): void
     {
+        if (!$this->enabled) {
+            // Silently skip when Firebase isn't configured.
+            return;
+        }
+
         $accessToken = $this->getAccessToken();
 
         $response = Http::withToken($accessToken)
