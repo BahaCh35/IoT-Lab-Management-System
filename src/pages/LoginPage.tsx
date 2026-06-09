@@ -168,9 +168,6 @@ const LoginPage: React.FC<{ onLogin?: (user: User) => void }> = ({ onLogin }) =>
             <Typography variant="caption" sx={{ display: 'block', color: '#374151', mb: 0.5 }}>
               <strong>Technician:</strong> technician@novation.com
             </Typography>
-            <Typography variant="caption" sx={{ display: 'block', color: '#374151', mb: 0.5 }}>
-              <strong>Guest:</strong> contractor@company.com 
-            </Typography>
             <Typography variant="caption" sx={{ display: 'block', color: '#6b7280', fontSize: '0.7rem' }}>
             </Typography>
           </Box>

@@ -5,8 +5,11 @@ import React, {
   useEffect,
   useState,
 } from 'react';
+import * as SecureStore from 'expo-secure-store';
 import { authService } from '../services/api/authService';
 import { UserProfile } from '../types';
+
+const USER_KEY = 'auth_user';
 
 interface AuthContextValue {
   user: UserProfile | null;
@@ -15,6 +18,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<UserProfile | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -24,7 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Hydrate from SecureStore on mount
+  // Hydrate from SecureStore on mount, then refresh from server in background
   useEffect(() => {
     (async () => {
       try {
@@ -33,11 +37,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedToken && storedUser) {
           setToken(storedToken);
           setUser(storedUser);
+          // Fire-and-forget: pull the latest profile from the server so any
+          // changes made elsewhere (e.g. admin renamed via web/profile screen)
+          // are reflected immediately on next render.
+          authService
+            .getCurrentUser()
+            .then(async (fresh) => {
+              setUser(fresh);
+              await SecureStore.setItemAsync(USER_KEY, JSON.stringify(fresh));
+            })
+            .catch(() => {
+              /* offline or 401 — keep cached user; 401 path is handled in client interceptor */
+            });
         }
       } finally {
         setIsLoading(false);
       }
     })();
+  }, []);
+
+  const refreshUser = useCallback(async (): Promise<UserProfile | null> => {
+    try {
+      const fresh = await authService.getCurrentUser();
+      setUser(fresh);
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(fresh));
+      return fresh;
+    } catch {
+      return null;
+    }
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -74,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!token && !!user,
         login,
         logout,
+        refreshUser,
       }}
     >
       {children}

@@ -32,7 +32,7 @@ interface DashboardData {
 }
 
 export function AdminDashboardScreen() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,6 +43,10 @@ export function AdminDashboardScreen() {
 
   const loadData = useCallback(async () => {
     try {
+      // Refresh the cached profile in parallel so the greeting reflects
+      // any name/role changes made elsewhere (web panel, profile screen, etc).
+      refreshUser();
+
       const [approvalStats, activeCheckouts, overdueCheckouts, lowStock, maintenanceStats] =
         await Promise.allSettled([
           approvalService.getApprovalStats(),
@@ -73,7 +77,7 @@ export function AdminDashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [refreshUser]);
 
   useEffect(() => {
     loadData();

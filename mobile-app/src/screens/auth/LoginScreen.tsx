@@ -58,8 +58,8 @@ export function LoginScreen() {
             style={styles.logoImage}
             resizeMode="contain"
           />
-          <Text style={styles.title}>SmartLab Admin</Text>
-          <Text style={styles.subtitle}>IoT Laboratory Management System</Text>
+          <Text style={styles.title}>Admin</Text>
+          <Text style={styles.subtitle}>Novation City Laboratory Management Platform</Text>
         </View>
 
         {/* Card */}
